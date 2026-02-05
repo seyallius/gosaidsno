@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/seyedali-dev/gosaidsno/aspect"
-	"github.com/seyedali-dev/gosaidsno/examples/utils"
+	"github.com/seyallius/gosaidsno/aspect"
+	"github.com/seyallius/gosaidsno/examples/utils"
 )
 
 // -------------------------------------------- Simple Cache --------------------------------------------

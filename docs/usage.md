@@ -1,0 +1,491 @@
+# Usage Guide
+
+This guide provides comprehensive information about using gosaidsno effectively in your Go applications.
+
+## Core Concepts
+
+### Function Registration
+
+Before you can apply advice to a function, you must register it with gosaidsno:
+
+```go
+import "github.com/seyallius/gosaidsno/aspect"
+
+// Register a function with a unique name
+err := aspect.Register("UserService.GetUser")
+
+// Or use MustRegister which panics on error
+aspect.MustRegister("UserService.GetUser")
+```
+
+Registration creates an entry in the internal registry that associates the function name with an advice chain. If you try to register the same function twice, it will return an error.
+
+### Advice Types
+
+gosaidsno supports five distinct types of advice, each executing at different points in the function lifecycle:
+
+#### Before Advice
+
+Executes before the target function. Useful for logging, validation, authentication, etc.
+
+```go
+aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        log.Printf("About to call %s", ctx.FunctionName)
+        return nil
+    },
+})
+```
+
+#### After Advice
+
+Executes after the target function, regardless of whether it succeeded or panicked. Always runs. Useful for cleanup, logging completion, releasing resources, etc.
+
+```go
+aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
+    Type:     aspect.After,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        log.Printf("Finished calling %s", ctx.FunctionName)
+        return nil
+    },
+})
+```
+
+#### Around Advice
+
+Wraps the target function execution. Can skip the target function entirely or modify arguments/results. Most powerful but also most complex advice type.
+
+```go
+aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
+    Type:     aspect.Around,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        log.Printf("Around advice: About to call %s", ctx.FunctionName)
+
+        // The target function executes here
+
+        log.Printf("Around advice: Finished calling %s", ctx.FunctionName)
+        return nil
+    },
+})
+```
+
+#### AfterReturning Advice
+
+Executes only if the target function returns successfully (no panic). Useful for post-processing successful results, caching, etc.
+
+```go
+aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
+    Type:     aspect.AfterReturning,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        if ctx.Error == nil {
+            log.Printf("Function %s succeeded", ctx.FunctionName)
+        }
+        return nil
+    },
+})
+```
+
+#### AfterThrowing Advice
+
+Executes only if the target function panics. Useful for error handling, cleanup on failure, etc.
+
+```go
+aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
+    Type:     aspect.AfterThrowing,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        if ctx.PanicValue != nil {
+            log.Printf("Function %s panicked: %v", ctx.FunctionName, ctx.PanicValue)
+        }
+        return nil
+    },
+})
+```
+
+### Priority System
+
+Within each advice type, execution order is determined by priority. Higher priority values execute first:
+
+```go
+// This executes first (priority 200)
+aspect.MustAddAdvice("MyFunc", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 200,
+    Handler:  highPriorityHandler,
+})
+
+// This executes second (priority 100)
+aspect.MustAddAdvice("MyFunc", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 100,
+    Handler:  mediumPriorityHandler,
+})
+
+// This executes third (priority 50)
+aspect.MustAddAdvice("MyFunc", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 50,
+    Handler:  lowPriorityHandler,
+})
+```
+
+### Context Object
+
+The `Context` object is passed to every advice function and contains important information:
+
+```go
+type Context struct {
+    FunctionName string         // Name of the registered function
+    Args         []any          // Arguments passed to the function
+    Results      []any          // Return values from the function
+    Error        error          // Error returned by the function
+    PanicValue   any            // Panic value if function panicked
+    Metadata     map[string]any // Custom key-value storage for advice communication
+    Skipped      bool           // Whether target function execution was skipped
+}
+```
+
+## Function Wrapping
+
+gosaidsno provides generic wrapper functions for different function signatures:
+
+### No Arguments, No Return Values
+
+```go
+originalFunc := func() {
+    // Your business logic
+}
+
+wrappedFunc := aspect.Wrap0("MyFunc", originalFunc)
+```
+
+### No Arguments, One Return Value
+
+```go
+originalFunc := func() string {
+    return "result"
+}
+
+wrappedFunc := aspect.Wrap0R[string]("MyFunc", originalFunc)
+```
+
+### No Arguments, Result and Error
+
+```go
+originalFunc := func() (string, error) {
+    return "result", nil
+}
+
+wrappedFunc := aspect.Wrap0RE[string]("MyFunc", originalFunc)
+```
+
+### One Argument, No Return Values
+
+```go
+originalFunc := func(userID int) {
+    // Process user ID
+}
+
+wrappedFunc := aspect.Wrap1[int]("MyFunc", originalFunc)
+```
+
+### One Argument, One Return Value
+
+```go
+originalFunc := func(userID int) string {
+    return fmt.Sprintf("user-%d", userID)
+}
+
+wrappedFunc := aspect.Wrap1R[int, string]("MyFunc", originalFunc)
+```
+
+### One Argument, Result and Error
+
+```go
+originalFunc := func(userID int) (string, error) {
+    if userID <= 0 {
+        return "", errors.New("invalid user ID")
+    }
+    return fmt.Sprintf("user-%d", userID), nil
+}
+
+wrappedFunc := aspect.Wrap1RE[int, string]("MyFunc", originalFunc)
+```
+
+### Multiple Arguments
+
+gosaidsno supports functions with up to 3 arguments:
+
+```go
+// Two arguments, result and error
+wrappedFunc := aspect.Wrap2RE[string, int, User]("MyFunc",
+    func(username string, age int) (User, error) {
+        // Implementation
+    })
+
+// Three arguments, result and error
+wrappedFunc := aspect.Wrap3RE[string, int, bool, User]("MyFunc",
+    func(username string, age int, active bool) (User, error) {
+        // Implementation
+    })
+```
+
+## Advanced Patterns
+
+### Using Metadata for Communication
+
+Advice functions can communicate with each other using the context's metadata field:
+
+```go
+// Authentication advice stores user info in metadata
+aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        token := ctx.Args[0].(string) // Assuming first arg is token
+        user, err := authenticate(token)
+        if err != nil {
+            return err
+        }
+        ctx.Metadata["authenticatedUser"] = user
+        return nil
+    },
+})
+
+// Authorization advice reads from metadata
+aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 90, // Lower priority, runs after auth
+    Handler: func(ctx *aspect.Context) error {
+        user := ctx.Metadata["authenticatedUser"].(*User)
+        if user.Role != "admin" {
+            return errors.New("insufficient permissions")
+        }
+        return nil
+    },
+})
+```
+
+### Caching with Around Advice
+
+Around advice can skip target function execution entirely:
+
+```go
+var cache = make(map[string]interface{})
+
+aspect.MustAddAdvice("ExpensiveCalculation", aspect.Advice{
+    Type:     aspect.Around,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        key := fmt.Sprintf("%v", ctx.Args[0]) // Simple key from first arg
+
+        if cached, exists := cache[key]; exists {
+            // Found in cache, skip target function
+            ctx.SetResult(0, cached)
+            ctx.Skipped = true
+            return nil
+        }
+
+        // Not in cache, let target function execute
+        // Result will be stored and available after function execution
+        return nil
+    },
+})
+
+aspect.MustAddAdvice("ExpensiveCalculation", aspect.Advice{
+    Type:     aspect.AfterReturning,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        if !ctx.Skipped {
+            // Cache the result only if function wasn't skipped
+            key := fmt.Sprintf("%v", ctx.Args[0])
+            cache[key] = ctx.Results[0]
+        }
+        return nil
+    },
+})
+```
+
+### Error Recovery and Retry Logic
+
+Combine multiple advice types for robust error handling:
+
+```go
+aspect.MustAddAdvice("ExternalAPICall", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        // Initialize retry counter
+        ctx.Metadata["retryCount"] = 0
+        return nil
+    },
+})
+
+aspect.MustAddAdvice("ExternalAPICall", aspect.Advice{
+    Type:     aspect.AfterReturning,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        if ctx.Error != nil {
+            retryCount := ctx.Metadata["retryCount"].(int)
+            if retryCount < 3 {
+                ctx.Metadata["retryCount"] = retryCount + 1
+                // In a real implementation, you'd trigger a retry here
+            }
+        }
+        return nil
+    },
+})
+```
+
+## Best Practices
+
+### 1. Centralized Setup
+
+Set up all your AOP configuration in one place, typically during application initialization:
+
+```go
+// aop/setup.go
+package aop
+
+import "github.com/seyallius/gosaidsno/aspect"
+
+func Init() {
+    setupLogging()
+    setupAuthentication()
+    setupCaching()
+    setupErrorHandling()
+}
+
+func setupLogging() {
+    // Register functions and add logging advice
+    aspect.MustRegister("UserService.GetUser")
+    aspect.MustAddAdvice("UserService.GetUser", loggingAdvice())
+}
+
+func setupAuthentication() {
+    // Similar setup for auth
+}
+```
+
+### 2. Error Handling in Advice
+
+Always handle errors in your advice functions appropriately:
+
+```go
+aspect.MustAddAdvice("MyFunc", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 100,
+    Handler: func(ctx *aspect.Context) error {
+        // Always return an error if something goes wrong
+        if someCondition {
+            return errors.New("validation failed")
+        }
+        return nil
+    },
+})
+```
+
+### 3. Performance Considerations
+
+Be mindful of the performance impact of advice:
+
+- Minimize heavy computations in advice functions
+- Use caching when appropriate
+- Profile your application to understand the overhead
+
+### 4. Testing
+
+Test both your advice functions and the interaction between advice and target functions:
+
+```go
+func TestLoggingAdvice(t *testing.T) {
+    var logOutput string
+
+    // Set up test advice that captures log output
+    aspect.MustAddAdvice("TestFunc", aspect.Advice{
+        Type:     aspect.Before,
+        Priority: 100,
+        Handler: func(ctx *aspect.Context) error {
+            logOutput = fmt.Sprintf("Called %s", ctx.FunctionName)
+            return nil
+        },
+    })
+
+    // Test the wrapped function
+    wrappedFunc := aspect.Wrap0("TestFunc", func() {})
+    wrappedFunc()
+
+    if logOutput != "Called TestFunc" {
+        t.Errorf("Expected logging, got %s", logOutput)
+    }
+}
+```
+
+## Common Use Cases
+
+### Logging and Monitoring
+
+```go
+func loggingAdvice() aspect.Advice {
+    return aspect.Advice{
+        Type:     aspect.Around,
+        Priority: 100,
+        Handler: func(ctx *aspect.Context) error {
+            start := time.Now()
+            log.Printf("Starting %s with args: %v", ctx.FunctionName, ctx.Args)
+
+            // Function executes here
+
+            duration := time.Since(start)
+            log.Printf("Completed %s in %v, result: %v, error: %v",
+                      ctx.FunctionName, duration, ctx.Results, ctx.Error)
+            return nil
+        },
+    }
+}
+```
+
+### Authentication and Authorization
+
+```go
+func authAdvice() aspect.Advice {
+    return aspect.Advice{
+        Type:     aspect.Before,
+        Priority: 100,
+        Handler: func(ctx *aspect.Context) error {
+            token := extractToken(ctx.Args)
+            user, err := validateToken(token)
+            if err != nil {
+                return errors.New("unauthorized")
+            }
+            ctx.Metadata["user"] = user
+            return nil
+        },
+    }
+}
+```
+
+### Rate Limiting
+
+```go
+func rateLimitingAdvice() aspect.Advice {
+    return aspect.Advice{
+        Type:     aspect.Before,
+        Priority: 100,
+        Handler: func(ctx *aspect.Context) error {
+            user := ctx.Metadata["user"].(*User)
+            if !rateLimiter.Allow(user.ID) {
+                return errors.New("rate limit exceeded")
+            }
+            return nil
+        },
+    }
+}
+```
+
+This guide covers the essential aspects of using gosaidsno. For more specific examples, check out the [Examples](../examples/README.md) directory.

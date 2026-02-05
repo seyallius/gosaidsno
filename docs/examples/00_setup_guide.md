@@ -23,7 +23,7 @@ package aop
 import (
     "log"
     "time"
-    "github.com/seyedali-dev/gosaidsno/aspect"
+    "github.com/seyallius/gosaidsno/aspect"
 )
 
 // InitAOP registers all functions and advice at application startup.
@@ -127,7 +127,7 @@ func main() {
 ```go
 package services
 
-import "github.com/seyedali-dev/gosaidsno/aspect"
+import "github.com/seyallius/gosaidsno/aspect"
 
 type UserService struct {
     getUser func(string) (*User, error)

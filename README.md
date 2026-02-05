@@ -1,6 +1,6 @@
 # gosaidsno
 
-> _I really wanted to use annotations…_  
+> _I really wanted to use annotations…_
 > _but Go said no._
 
 <p align="center">
@@ -10,36 +10,53 @@
 
 **AOP without annotations. Just function wrapping. The Go way.**
 
-### 🤡 What This Solves (The Go Way)
+## What is gosaidsno?
 
-> You’re tired of writing this everywhere:  
-> ```go  
-> func ProcessPayment() error {  
->     log.Println("starting...")  
->     err := callStripe()  
->     log.Println("done.")  
->     return err  
-> }  
-> ```  
->  
-> And you *really* wanted to write:  
-> ```java  
-> @Around("callStripe()")  
-> public void logAndRetry() { ... }  
-> ```  
->  
-> **But Go said no.**  
->  
-> So `gosaidsno` lets you:  
->  
-> ✅ **Stop copy-pasting logging/retry/auth code**  
-> ✅ **Stop pretending Go has annotations**  
-> ✅ **Start wrapping functions like a sane adult**  
->  
-> No magic. No reflection. No `@Aspect`.  
-> Just **register a func. Add some advice. Let it rip.**  
->  
-> *You didn’t ask for AOP.*  
-> *You just wanted your code to not suck.*  
->  
-> **This is your non-magic, slightly sarcastic fix.**
+`gosaidsno` is an Aspect-Oriented Programming (AOP) library for Go that allows you to modularize cross-cutting concerns
+like logging, authentication, caching, and error handling without cluttering your business logic.
+
+Instead of copy-pasting boilerplate code throughout your application, you can register functions and attach advice (
+cross-cutting concerns) to them. The library provides a clean, Go-idiomatic way to achieve separation of concerns.
+
+## Key Features
+
+- **No magic**: No reflection, no code generation, no build tags
+- **Simple API**: Register functions and attach advice with minimal setup
+- **Flexible advice types**: Before, After, Around, AfterReturning, AfterThrowing
+- **Priority-based execution**: Control the order of advice execution
+- **Generic function wrappers**: Type-safe wrappers for functions with various signatures
+- **Metadata system**: Share data between different advice functions
+
+## Quick Example
+
+```go
+// Register your function
+aspect.MustRegister("ProcessPayment")
+
+// Add logging advice
+aspect.MustAddAdvice("ProcessPayment", aspect.Advice{
+    Type:     aspect.Before,
+    Priority: 100,
+    Handler: func (ctx *aspect.Context) error {
+        log.Printf("Starting %s", ctx.FunctionName)
+        return nil
+    },
+})
+
+// Wrap your function
+ProcessPayment := aspect.Wrap1E[int](
+	"ProcessPayment", 
+	func (paymentID int) error {
+        // Your business logic here
+        return nil
+    }, 
+)
+
+// Use as normal
+ProcessPayment(123)
+```
+
+## Getting Started
+
+Check out our [Quick Start Guide](./docs/quick-start.md) to begin using gosaidsno in your project, or dive deeper into
+the [Usage Documentation](./docs/usage.md) for comprehensive examples and best practices.

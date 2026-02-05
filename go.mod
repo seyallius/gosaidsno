@@ -1,3 +1,3 @@
-module github.com/seyedali-dev/gosaidsno
+module github.com/seyallius/gosaidsno
 
 go 1.25
