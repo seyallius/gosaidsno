@@ -24,8 +24,11 @@ func Wrap0R[R any](registry *Registry, funcKey FuncKey, fn func() R) func() R {
 		})
 
 		// If Around advice set a result and skipped execution, use that result
-		if c != nil && len(c.Results) > 0 && c.Results[0] != nil {
-			result = c.Results[0].(R)
+		if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := c.Results[0].(R); ok {
+				result = res
+			}
 		}
 
 		return result
@@ -44,8 +47,11 @@ func Wrap0RE[R any](registry *Registry, funcKey FuncKey, fn func() (R, error)) f
 		})
 
 		// If Around advice set a result and skipped execution, use that result
-		if c != nil && len(c.Results) > 0 && c.Results[0] != nil {
-			result = c.Results[0].(R)
+		if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := c.Results[0].(R); ok {
+				result = res
+			}
 		}
 		if c != nil && c.Error != nil {
 			err = c.Error
@@ -90,11 +96,23 @@ func Wrap1RE[A, R any](registry *Registry, funcKey FuncKey, fn func(A) (R, error
 	return func(a A) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, funcKey, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result, err = fn(a)
 			c.SetResult(0, result)
 			c.Error = err
 		}, a)
+
+		// If Around advice set a result and skipped execution, use that result
+		if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := c.Results[0].(R); ok {
+				result = res
+			}
+		}
+		if c != nil && c.Error != nil {
+			err = c.Error
+		}
+
 		return result, err
 	}
 }
@@ -124,10 +142,19 @@ func Wrap2[A, B any](registry *Registry, funcKey FuncKey, fn func(A, B)) func(A,
 func Wrap2R[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) R) func(A, B) R {
 	return func(a A, b B) R {
 		var result R
-		executeWithAdvice(registry, funcKey, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result = fn(a, b)
 			c.SetResult(0, result)
 		}, a, b)
+
+		// If Around advice set a result and skipped execution, use that result
+		if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := c.Results[0].(R); ok {
+				result = res
+			}
+		}
+
 		return result
 	}
 }
@@ -137,11 +164,23 @@ func Wrap2RE[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) (R,
 	return func(a A, b B) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, funcKey, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result, err = fn(a, b)
 			c.SetResult(0, result)
 			c.Error = err
 		}, a, b)
+
+		// If Around advice set a result and skipped execution, use that result
+		if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := c.Results[0].(R); ok {
+				result = res
+			}
+		}
+		if c != nil && c.Error != nil {
+			err = c.Error
+		}
+
 		return result, err
 	}
 }
@@ -169,26 +208,47 @@ func Wrap3[A, B, C any](registry *Registry, funcKey FuncKey, fn func(A, B, C)) f
 
 // Wrap3R wraps a function with three arguments and one return value.
 func Wrap3R[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, C) R) func(A, B, C) R {
-	return func(a A, b B, c C) R {
+	return func(a A, b B, paramC C) R {
 		var result R
-		executeWithAdvice(registry, funcKey, func(ct *Context) {
-			result = fn(a, b, c)
+		ctx := executeWithAdvice(registry, funcKey, func(ct *Context) {
+			result = fn(a, b, paramC)
 			ct.SetResult(0, result)
-		}, a, b, c)
+		}, a, b, paramC)
+
+		// If Around advice set a result and skipped execution, use that result
+		if ctx != nil && ctx.Skipped && len(ctx.Results) > 0 && ctx.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := ctx.Results[0].(R); ok {
+				result = res
+			}
+		}
+
 		return result
 	}
 }
 
 // Wrap3RE wraps a function with three arguments and returns (result, error).
 func Wrap3RE[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, C) (R, error)) func(A, B, C) (R, error) {
-	return func(a A, b B, c C) (R, error) {
+	return func(a A, b B, paramC C) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, funcKey, func(ct *Context) {
-			result, err = fn(a, b, c)
+		ctx := executeWithAdvice(registry, funcKey, func(ct *Context) {
+			result, err = fn(a, b, paramC)
 			ct.SetResult(0, result)
 			ct.Error = err
-		}, a, b, c)
+		}, a, b, paramC)
+
+		// If Around advice set a result and skipped execution, use that result
+		if ctx != nil && ctx.Skipped && len(ctx.Results) > 0 && ctx.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := ctx.Results[0].(R); ok {
+				result = res
+			}
+		}
+		if ctx != nil && ctx.Error != nil {
+			err = ctx.Error
+		}
+
 		return result, err
 	}
 }
