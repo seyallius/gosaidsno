@@ -1,7 +1,10 @@
 // Package aspect - context provides execution context for aspect-oriented advice
 package aspect
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // -------------------------------------------- Types --------------------------------------------
 
@@ -15,6 +18,7 @@ type Context struct {
 	PanicValue   any            // PanicValue holds the recovered panic value if a panic occurred.
 	Metadata     map[string]any // Metadata allows storing custom key-value pairs for advice communication.
 	Skipped      bool           // Skipped indicates if the target function execution should be skipped (set by Around advice).
+	mu           sync.RWMutex
 }
 
 // NewContext creates a new execution context for the given function.
@@ -59,4 +63,19 @@ func (c *Context) HasPanic() bool {
 func (c *Context) String() string {
 	return fmt.Sprintf("Context{Function: %s, Args: %v, Results: %v, Error: %v, Panic: %v}",
 		c.FunctionName, c.Args, c.Results, c.Error, c.PanicValue)
+}
+
+func (c *Context) SetMetadataVal(key string, val any) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.Metadata[key] = val
+}
+
+func (c *Context) GetMetadataVal(key string) (any, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	val, exists := c.Metadata[key]
+	return val, exists
 }

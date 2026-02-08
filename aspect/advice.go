@@ -1,7 +1,10 @@
 // Package aspect - advice defines the advice types and execution chain for AOP
 package aspect
 
-import "sort"
+import (
+	"sort"
+	"sync"
+)
 
 // -------------------------------------------- Constants & Variables --------------------------------------------
 
@@ -36,6 +39,7 @@ type AdviceChain struct {
 	around         []Advice
 	afterReturning []Advice
 	afterThrowing  []Advice
+	mu             sync.RWMutex
 }
 
 // NewAdviceChain creates a new empty advice chain.
@@ -53,6 +57,9 @@ func NewAdviceChain() *AdviceChain {
 
 // Add adds advice to the chain based on its type.
 func (ac *AdviceChain) Add(advice Advice) {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+
 	switch advice.Type {
 	case Before:
 		ac.before = append(ac.before, advice)
@@ -69,37 +76,67 @@ func (ac *AdviceChain) Add(advice Advice) {
 
 // ExecuteBefore runs all Before advice in order of priority.
 func (ac *AdviceChain) ExecuteBefore(c *Context) error {
-	return ac.executeAdviceList(ac.before, c)
+	ac.mu.RLock()
+	advice := append([]Advice(nil), ac.before...)
+	ac.mu.RUnlock()
+
+	return ac.executeAdviceList(advice, c)
 }
 
 // ExecuteAfter runs all After advice in order of priority.
 func (ac *AdviceChain) ExecuteAfter(c *Context) error {
-	return ac.executeAdviceList(ac.after, c)
+	ac.mu.RLock()
+	advice := append([]Advice(nil), ac.after...)
+	ac.mu.RUnlock()
+
+	return ac.executeAdviceList(advice, c)
 }
 
 // ExecuteAround runs all Around advice in order of priority.
 func (ac *AdviceChain) ExecuteAround(c *Context) error {
-	return ac.executeAdviceList(ac.around, c)
+	ac.mu.RLock()
+	advice := append([]Advice(nil), ac.around...)
+	ac.mu.RUnlock()
+
+	return ac.executeAdviceList(advice, c)
 }
 
 // ExecuteAfterReturning runs all AfterReturning advice in order of priority.
 func (ac *AdviceChain) ExecuteAfterReturning(c *Context) error {
-	return ac.executeAdviceList(ac.afterReturning, c)
+	ac.mu.RLock()
+	advice := append([]Advice(nil), ac.afterReturning...)
+	ac.mu.RUnlock()
+
+	return ac.executeAdviceList(advice, c)
 }
 
 // ExecuteAfterThrowing runs all AfterThrowing advice in order of priority.
 func (ac *AdviceChain) ExecuteAfterThrowing(c *Context) error {
-	return ac.executeAdviceList(ac.afterThrowing, c)
+	ac.mu.RLock()
+	advice := append([]Advice(nil), ac.afterThrowing...)
+	ac.mu.RUnlock()
+
+	return ac.executeAdviceList(advice, c)
 }
 
 // HasAround returns true if the chain has Around advice.
 func (ac *AdviceChain) HasAround() bool {
+	ac.mu.RLock()
+	defer ac.mu.RUnlock()
+
 	return len(ac.around) > 0
 }
 
 // Count returns the total number of advice in the chain.
 func (ac *AdviceChain) Count() int {
-	return len(ac.before) + len(ac.after) + len(ac.around) + len(ac.afterReturning) + len(ac.afterThrowing)
+	ac.mu.RLock()
+	defer ac.mu.RUnlock()
+
+	return len(ac.before) +
+		len(ac.after) +
+		len(ac.around) +
+		len(ac.afterReturning) +
+		len(ac.afterThrowing)
 }
 
 // -------------------------------------------- Private Helper Functions --------------------------------------------

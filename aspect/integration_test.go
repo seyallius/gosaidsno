@@ -105,7 +105,8 @@ func TestIntegration_TimingPattern(t *testing.T) {
 		Type:     Before,
 		Priority: 100,
 		Handler: func(c *Context) error {
-			c.Metadata["startTime"] = time.Now()
+			c.SetMetadataVal("startTime", time.Now())
+			c.SetMetadataVal("startTime", time.Now())
 			return nil
 		},
 	})
@@ -116,7 +117,8 @@ func TestIntegration_TimingPattern(t *testing.T) {
 		Type:     After,
 		Priority: 100,
 		Handler: func(c *Context) error {
-			startTime := c.Metadata["startTime"].(time.Time)
+			val, _ := c.GetMetadataVal("startTime")
+			startTime := val.(time.Time)
 			duration = time.Since(startTime)
 			return nil
 		},
@@ -409,8 +411,8 @@ func TestIntegration_MetadataPassingBetweenAdvice(t *testing.T) {
 		Type:     Before,
 		Priority: 100,
 		Handler: func(c *Context) error {
-			c.Metadata["userId"] = "user_123"
-			c.Metadata["requestId"] = "req_456"
+			c.SetMetadataVal("userId", "user_123")
+			c.SetMetadataVal("requestId", "req_456")
 			return nil
 		},
 	})
