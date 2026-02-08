@@ -70,30 +70,40 @@ clean: ## Clean build artifacts
 .PHONY: ex-basic
 ex-basic: ## Run example: Basic Usage (Before, After, AfterReturning)
 	@echo "Running basic usage example..."
-	go run examples/01_basic_usage/main.go
+	go run docs/examples/01_basic_usage/main.go
 
 .PHONY: ex-cache
 ex-cache: ## Run example: Caching Pattern (Around, AfterReturning)
 	@echo "Running caching pattern example..."
-	go run examples/02_caching_pattern/main.go
+	go run docs/examples/02_caching_pattern/main.go
 
 .PHONY: ex-auth
 ex-auth: ## Run example: Authentication (Before, After, AfterReturning)
 	@echo "Running authentication example..."
-	go run examples/03_authentication/main.go
+	go run docs/examples/03_authentication/main.go
 
 .PHONY: ex-circuit-br
 ex-circuit-br: ## Run example: Circuit Breaker (Before, Around, After)
 	@echo "Running circuit breaker example..."
-	go run examples/04_circuit_breaker/main.go
+	go run docs/examples/04_circuit_breaker/main.go
 
 .PHONY: ex-retry
 ex-retry: ## Run example: Retry Pattern (Before, After)
 	@echo "Running retry pattern example..."
-	go run examples/05_retry_pattern/main.go
+	go run docs/examples/05_retry_pattern/main.go
+
+.PHONY: ex-all
+ex-all: ex-basic ex-cache ex-auth ex-circuit-br ex-retry ## Run all examples.
 
 ##@ Docs (Docksify)
 
 .PHONY: serve
 serve: ## Serve documentations locally (docksify must be installed - refer to documentation)
 	docsify serve ./docs
+
+
+##@ Git
+
+.PHONY: rebase
+rebase-%: ## Rebase current branch to the specified number of commits. Usage: make rebase-n
+	@git rebase -i HEAD~$*

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/seyallius/gosaidsno/aspect"
-	"github.com/seyallius/gosaidsno/examples/utils"
+	"github.com/seyallius/gosaidsno/docs/examples/utils"
 )
 
 // -------------------------------------------- Simple Cache --------------------------------------------
@@ -52,58 +52,68 @@ var userCache = NewCache()
 
 // -------------------------------------------- Setup --------------------------------------------
 
+var registry = aspect.NewRegistry()
+
 func setupAOP() {
 	log.Println("=== Setting up Caching AOP ===")
 
-	aspect.MustRegister("FetchUserProfile")
-	aspect.MustRegister("CalculateRecommendations")
+	registry.MustRegister("FetchUserProfile")
+	registry.MustRegister("CalculateRecommendations")
 
 	// Around advice for caching
-	aspect.MustAddAdvice("FetchUserProfile", aspect.Advice{
+	registry.MustAddAdvice("FetchUserProfile", aspect.Advice{
 		Type:     aspect.Around,
 		Priority: 100,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAround(ctx, 100, "CACHE CHECK")
-			userID := ctx.Args[0].(string)
+		Handler: func(c *aspect.Context) error {
+			utils.LogAround(c, 100, "CACHE CHECK")
+			userID := c.Args[0].(string)
 			cacheKey := "user:" + userID
 
 			// Check cache
 			if cached, ok := userCache.Get(cacheKey); ok {
 				log.Printf("   💾 [CACHE HIT] FetchUserProfile(%s) - returning cached result", userID)
-				ctx.SetResult(0, cached)
-				ctx.Skipped = true // Skip expensive DB call
+				c.SetResult(0, cached)
+				c.Skipped = true // Skip expensive DB call
 				log.Printf("   ⏩ [AROUND] Skipping function execution due to cache hit")
-				log.Printf("🟠 [AROUND] %s - END (cache hit)", ctx.FunctionName)
+				log.Printf("🟠 [AROUND] %s - END (cache hit)", c.FunctionName)
 				return nil
 			}
 
 			log.Printf("   💾 [CACHE MISS] FetchUserProfile(%s) - will fetch from DB", userID)
 			log.Printf("   ▶️  [AROUND] Proceeding with function execution")
-			utils.LogAround(ctx, 100, "END (cache miss)")
+			utils.LogAround(c, 100, "END (cache miss)")
 			return nil // Allow function to execute
 		},
 	})
 
 	// AfterReturning to populate cache (only when function actually executed)
-	aspect.MustAddAdvice("FetchUserProfile", aspect.Advice{
+	registry.MustAddAdvice("FetchUserProfile", aspect.Advice{
 		Type:     aspect.AfterReturning,
 		Priority: 100,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAfterReturning(ctx, 100, "CACHE POPULATION")
+		Handler: func(c *aspect.Context) error {
+			utils.LogAfterReturning(c, 100, "CACHE POPULATION")
 
 			// Don't cache if execution was skipped (cache hit)
-			if ctx.Skipped {
+			if c.Skipped {
 				log.Printf("   ⏭️  [CACHE] Skipping cache set - function was not executed")
 				return nil
 			}
 
-			userID := ctx.Args[0].(string)
-			if len(ctx.Results) == 0 || ctx.Results[0] == nil {
-				log.Printf("   ⚠️  [CACHE] No result to cache")
-				return nil // No result to cache
+			userID := c.Args[0].(string)
+
+			// Check if there are results and the first result is not nil
+			if len(c.Results) == 0 {
+				log.Printf("   ⚠️  [CACHE] No results to cache")
+				return nil
 			}
 
-			profile := ctx.Results[0].(*UserProfile)
+			// Handle the case where the result might be nil
+			if c.Results[0] == nil {
+				log.Printf("   ⚠️  [CACHE] Result is nil, not caching")
+				return nil
+			}
+
+			profile := c.Results[0].(*UserProfile)
 			cacheKey := "user:" + userID
 
 			userCache.Set(cacheKey, profile)
@@ -116,12 +126,12 @@ func setupAOP() {
 	cacheStore := make(map[string]cacheEntry)
 	var cacheMu sync.RWMutex
 
-	aspect.MustAddAdvice("CalculateRecommendations", aspect.Advice{
+	registry.MustAddAdvice("CalculateRecommendations", aspect.Advice{
 		Type:     aspect.Around,
 		Priority: 100,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAround(ctx, 100, "TTL CACHE CHECK")
-			userID := ctx.Args[0].(string)
+		Handler: func(c *aspect.Context) error {
+			utils.LogAround(c, 100, "TTL CACHE CHECK")
+			userID := c.Args[0].(string)
 
 			cacheMu.RLock()
 			entry, exists := cacheStore[userID]
@@ -130,10 +140,10 @@ func setupAOP() {
 			// Check if cache is valid (not expired)
 			if exists && time.Since(entry.timestamp) < 5*time.Second {
 				log.Printf("   💾 [CACHE HIT] CalculateRecommendations(%s) - using cached", userID)
-				ctx.SetResult(0, entry.value)
-				ctx.Skipped = true
+				c.SetResult(0, entry.value)
+				c.Skipped = true
 				log.Printf("   ⏩ [AROUND] Skipping function execution due to cache hit")
-				utils.LogAround(ctx, 100, "END (cache hit)")
+				utils.LogAround(c, 100, "END (cache hit)")
 				return nil
 			}
 
@@ -143,30 +153,30 @@ func setupAOP() {
 				log.Printf("   💾 [CACHE MISS] CalculateRecommendations(%s) - calculating", userID)
 			}
 			log.Printf("   ▶️  [AROUND] Proceeding with function execution")
-			utils.LogAround(ctx, 100, "END (cache miss/expired)")
+			utils.LogAround(c, 100, "END (cache miss/expired)")
 			return nil
 		},
 	})
 
-	aspect.MustAddAdvice("CalculateRecommendations", aspect.Advice{
+	registry.MustAddAdvice("CalculateRecommendations", aspect.Advice{
 		Type:     aspect.AfterReturning,
 		Priority: 100,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAfterReturning(ctx, 100, "TTL CACHE POPULATION")
+		Handler: func(c *aspect.Context) error {
+			utils.LogAfterReturning(c, 100, "TTL CACHE POPULATION")
 
 			// Don't cache if execution was skipped
-			if ctx.Skipped {
+			if c.Skipped {
 				log.Printf("   ⏭️  [CACHE] Skipping cache set - function was not executed")
 				return nil
 			}
 
-			userID := ctx.Args[0].(string)
-			if len(ctx.Results) == 0 || ctx.Results[0] == nil {
+			userID := c.Args[0].(string)
+			if len(c.Results) == 0 || c.Results[0] == nil {
 				log.Printf("   ⚠️  [CACHE] No result to cache")
 				return nil
 			}
 
-			recommendations := ctx.Results[0].([]string)
+			recommendations := c.Results[0].([]string)
 
 			cacheMu.Lock()
 			cacheStore[userID] = cacheEntry{
@@ -233,8 +243,8 @@ func calculateRecommendationsImpl(userID string) ([]string, error) {
 // -------------------------------------------- Wrapped Functions --------------------------------------------
 
 var (
-	FetchUserProfile         = aspect.Wrap1RE("FetchUserProfile", fetchUserProfileImpl)
-	CalculateRecommendations = aspect.Wrap1RE("CalculateRecommendations", calculateRecommendationsImpl)
+	FetchUserProfile         = aspect.Wrap1RE(registry, "FetchUserProfile", fetchUserProfileImpl)
+	CalculateRecommendations = aspect.Wrap1RE(registry, "CalculateRecommendations", calculateRecommendationsImpl)
 )
 
 // -------------------------------------------- Examples --------------------------------------------

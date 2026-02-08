@@ -6,26 +6,26 @@ import "fmt"
 // -------------------------------------------- Public Functions --------------------------------------------
 
 // Wrap0 wraps a function with no arguments and no return values.
-func Wrap0(name string, fn func()) func() {
+func Wrap0(registry *Registry, name string, fn func()) func() {
 	return func() {
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			fn()
 		})
 	}
 }
 
 // Wrap0R wraps a function with no arguments and one return value.
-func Wrap0R[R any](name string, fn func() R) func() R {
+func Wrap0R[R any](registry *Registry, name string, fn func() R) func() R {
 	return func() R {
 		var result R
-		ctx := executeWithAdvice(name, func(ctx *Context) {
+		c := executeWithAdvice(registry, name, func(c *Context) {
 			result = fn()
-			ctx.SetResult(0, result)
+			c.SetResult(0, result)
 		})
 
 		// If Around advice set a result and skipped execution, use that result
-		if ctx != nil && len(ctx.Results) > 0 && ctx.Results[0] != nil {
-			result = ctx.Results[0].(R)
+		if c != nil && len(c.Results) > 0 && c.Results[0] != nil {
+			result = c.Results[0].(R)
 		}
 
 		return result
@@ -33,22 +33,22 @@ func Wrap0R[R any](name string, fn func() R) func() R {
 }
 
 // Wrap0RE wraps a function with no arguments and returns (result, error).
-func Wrap0RE[R any](name string, fn func() (R, error)) func() (R, error) {
+func Wrap0RE[R any](registry *Registry, name string, fn func() (R, error)) func() (R, error) {
 	return func() (R, error) {
 		var result R
 		var err error
-		ctx := executeWithAdvice(name, func(ctx *Context) {
+		c := executeWithAdvice(registry, name, func(c *Context) {
 			result, err = fn()
-			ctx.SetResult(0, result)
-			ctx.Error = err
+			c.SetResult(0, result)
+			c.Error = err
 		})
 
 		// If Around advice set a result and skipped execution, use that result
-		if ctx != nil && len(ctx.Results) > 0 && ctx.Results[0] != nil {
-			result = ctx.Results[0].(R)
+		if c != nil && len(c.Results) > 0 && c.Results[0] != nil {
+			result = c.Results[0].(R)
 		}
-		if ctx != nil && ctx.Error != nil {
-			err = ctx.Error
+		if c != nil && c.Error != nil {
+			err = c.Error
 		}
 
 		return result, err
@@ -56,27 +56,27 @@ func Wrap0RE[R any](name string, fn func() (R, error)) func() (R, error) {
 }
 
 // Wrap1 wraps a function with one argument and no return values.
-func Wrap1[A any](name string, fn func(A)) func(A) {
+func Wrap1[A any](registry *Registry, name string, fn func(A)) func(A) {
 	return func(a A) {
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			fn(a)
 		}, a)
 	}
 }
 
 // Wrap1R wraps a function with one argument and one return value.
-func Wrap1R[A, R any](name string, fn func(A) R) func(A) R {
+func Wrap1R[A, R any](registry *Registry, name string, fn func(A) R) func(A) R {
 	return func(a A) R {
 		var result R
-		ctx := executeWithAdvice(name, func(ctx *Context) {
+		c := executeWithAdvice(registry, name, func(c *Context) {
 			result = fn(a)
-			ctx.SetResult(0, result)
+			c.SetResult(0, result)
 		}, a)
 
 		// If Around advice set a result and skipped execution, use that result
-		if ctx != nil && ctx.Skipped && len(ctx.Results) > 0 && ctx.Results[0] != nil {
+		if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
 			// Safe type assertion with proper handling
-			if res, ok := ctx.Results[0].(R); ok {
+			if res, ok := c.Results[0].(R); ok {
 				result = res
 			}
 		}
@@ -86,118 +86,151 @@ func Wrap1R[A, R any](name string, fn func(A) R) func(A) R {
 }
 
 // Wrap1RE wraps a function with one argument and returns (result, error).
-func Wrap1RE[A, R any](name string, fn func(A) (R, error)) func(A) (R, error) {
+func Wrap1RE[A, R any](registry *Registry, name string, fn func(A) (R, error)) func(A) (R, error) {
 	return func(a A) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			result, err = fn(a)
-			ctx.SetResult(0, result)
-			ctx.Error = err
+			c.SetResult(0, result)
+			c.Error = err
 		}, a)
 		return result, err
 	}
 }
 
 // Wrap1E wraps a function with one argument and returns error.
-func Wrap1E[A any](name string, fn func(A) error) func(A) error {
+func Wrap1E[A any](registry *Registry, name string, fn func(A) error) func(A) error {
 	return func(a A) error {
 		var err error
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			err = fn(a)
-			ctx.Error = err
+			c.Error = err
 		}, a)
 		return err
 	}
 }
 
 // Wrap2 wraps a function with two arguments and no return values.
-func Wrap2[A, B any](name string, fn func(A, B)) func(A, B) {
+func Wrap2[A, B any](registry *Registry, name string, fn func(A, B)) func(A, B) {
 	return func(a A, b B) {
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			fn(a, b)
 		}, a, b)
 	}
 }
 
 // Wrap2R wraps a function with two arguments and one return value.
-func Wrap2R[A, B, R any](name string, fn func(A, B) R) func(A, B) R {
+func Wrap2R[A, B, R any](registry *Registry, name string, fn func(A, B) R) func(A, B) R {
 	return func(a A, b B) R {
 		var result R
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			result = fn(a, b)
-			ctx.SetResult(0, result)
+			c.SetResult(0, result)
 		}, a, b)
 		return result
 	}
 }
 
 // Wrap2RE wraps a function with two arguments and returns (result, error).
-func Wrap2RE[A, B, R any](name string, fn func(A, B) (R, error)) func(A, B) (R, error) {
+func Wrap2RE[A, B, R any](registry *Registry, name string, fn func(A, B) (R, error)) func(A, B) (R, error) {
 	return func(a A, b B) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			result, err = fn(a, b)
-			ctx.SetResult(0, result)
-			ctx.Error = err
+			c.SetResult(0, result)
+			c.Error = err
 		}, a, b)
 		return result, err
 	}
 }
 
 // Wrap2E wraps a function with two arguments and returns error.
-func Wrap2E[A, B any](name string, fn func(A, B) error) func(A, B) error {
+func Wrap2E[A, B any](registry *Registry, name string, fn func(A, B) error) func(A, B) error {
 	return func(a A, b B) error {
 		var err error
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(c *Context) {
 			err = fn(a, b)
-			ctx.Error = err
+			c.Error = err
 		}, a, b)
 		return err
 	}
 }
 
+// Wrap3 wraps a function with three arguments and no return values.
+func Wrap3[A, B, C any](registry *Registry, name string, fn func(A, B, C)) func(A, B, C) {
+	return func(a A, b B, c C) {
+		executeWithAdvice(registry, name, func(ct *Context) {
+			fn(a, b, c)
+		}, a, b, c)
+	}
+}
+
+// Wrap3R wraps a function with three arguments and one return value.
+func Wrap3R[A, B, C, R any](registry *Registry, name string, fn func(A, B, C) R) func(A, B, C) R {
+	return func(a A, b B, c C) R {
+		var result R
+		executeWithAdvice(registry, name, func(ct *Context) {
+			result = fn(a, b, c)
+			ct.SetResult(0, result)
+		}, a, b, c)
+		return result
+	}
+}
+
 // Wrap3RE wraps a function with three arguments and returns (result, error).
-func Wrap3RE[A, B, C, R any](name string, fn func(A, B, C) (R, error)) func(A, B, C) (R, error) {
+func Wrap3RE[A, B, C, R any](registry *Registry, name string, fn func(A, B, C) (R, error)) func(A, B, C) (R, error) {
 	return func(a A, b B, c C) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(name, func(ctx *Context) {
+		executeWithAdvice(registry, name, func(ct *Context) {
 			result, err = fn(a, b, c)
-			ctx.SetResult(0, result)
-			ctx.Error = err
+			ct.SetResult(0, result)
+			ct.Error = err
 		}, a, b, c)
 		return result, err
+	}
+}
+
+// Wrap3E wraps a function with three arguments and returns error.
+func Wrap3E[A, B, C any](registry *Registry, name string, fn func(A, B, C) error) func(A, B, C) error {
+	return func(a A, b B, c C) error {
+		var err error
+		executeWithAdvice(registry, name, func(ct *Context) {
+			err = fn(a, b, c)
+			ct.Error = err
+		}, a, b, c)
+		return err
 	}
 }
 
 // -------------------------------------------- Private Helper Functions --------------------------------------------
 
 // executeWithAdvice executes a function with full advice chain support and returns the context.
-func executeWithAdvice(functionName string, targetFn func(*Context), args ...any) *Context {
+func executeWithAdvice(registry *Registry, functionName string, targetFn func(*Context), args ...any) *Context {
 	// Get advice chain from registry
-	chain, err := GetAdviceChain(functionName)
+	chain, err := registry.GetAdviceChain(functionName)
 	if err != nil {
 		// No advice registered, just execute target function
-		ctx := NewContext(functionName, args...)
-		targetFn(ctx)
-		return ctx
+		c := NewContext(functionName, args...)
+		targetFn(c)
+		return c
 	}
 
 	// Create execution context
-	ctx := NewContext(functionName, args...)
+	c := NewContext(functionName, args...)
 
 	// Defer After advice (always runs)
 	defer func() {
-		_ = chain.ExecuteAfter(ctx)
+		_ = chain.ExecuteAfter(c)
 	}()
 
 	// Defer panic recovery and AfterThrowing advice
 	defer func() {
 		if r := recover(); r != nil {
-			ctx.PanicValue = r
-			_ = chain.ExecuteAfterThrowing(ctx)
+			c.PanicValue = r
+			_ = chain.ExecuteAfterThrowing(c)
 
 			// Re-panic to maintain panic semantics
 			panic(r)
@@ -205,32 +238,32 @@ func executeWithAdvice(functionName string, targetFn func(*Context), args ...any
 	}()
 
 	// Execute Before advice
-	if err := chain.ExecuteBefore(ctx); err != nil {
+	if err := chain.ExecuteBefore(c); err != nil {
 		panic(fmt.Errorf("before advice failed: %w", err))
 	}
 
 	// Execute Around advice (if any)
 	if chain.HasAround() {
-		if err := chain.ExecuteAround(ctx); err != nil {
+		if err := chain.ExecuteAround(c); err != nil {
 			panic(fmt.Errorf("around advice failed: %w", err))
 		}
 		// If Around advice sets Skipped, don't execute target function
-		if ctx.Skipped {
+		if c.Skipped {
 			// Execute AfterReturning if no error (Around advice might have set result)
-			if ctx.Error == nil && !ctx.HasPanic() {
-				_ = chain.ExecuteAfterReturning(ctx)
+			if c.Error == nil && !c.HasPanic() {
+				_ = chain.ExecuteAfterReturning(c)
 			}
-			return ctx
+			return c
 		}
 	}
 
 	// Execute target function
-	targetFn(ctx)
+	targetFn(c)
 
 	// Execute AfterReturning advice (only if no error and no panic)
-	if ctx.Error == nil && !ctx.HasPanic() {
-		_ = chain.ExecuteAfterReturning(ctx)
+	if c.Error == nil && !c.HasPanic() {
+		_ = chain.ExecuteAfterReturning(c)
 	}
 
-	return ctx
+	return c
 }

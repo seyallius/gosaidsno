@@ -37,8 +37,8 @@ aspect.MustRegister("ProcessPayment")
 aspect.MustAddAdvice("ProcessPayment", aspect.Advice{
     Type:     aspect.Before,
     Priority: 100,
-    Handler: func (ctx *aspect.Context) error {
-        log.Printf("Starting %s", ctx.FunctionName)
+    Handler: func (c *aspect.Context) error {
+        log.Printf("Starting %s", c.FunctionName)
         return nil
     },
 })

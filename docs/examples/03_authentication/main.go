@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/seyallius/gosaidsno/aspect"
-	"github.com/seyallius/gosaidsno/examples/utils"
+	"github.com/seyallius/gosaidsno/docs/examples/utils"
 )
 
 // -------------------------------------------- Auth System --------------------------------------------
@@ -39,33 +39,35 @@ func validateToken(token string) (*Session, error) {
 
 // -------------------------------------------- Setup --------------------------------------------
 
+var registry = aspect.NewRegistry()
+
 func setupAOP() {
 	log.Println("=== Setting up Authentication AOP ===")
 
-	aspect.MustRegister("GetUserData")
-	aspect.MustRegister("DeleteUser")
-	aspect.MustRegister("UpdateSettings")
+	registry.MustRegister("GetUserData")
+	registry.MustRegister("DeleteUser")
+	registry.MustRegister("UpdateSettings")
 
 	// Authentication check (Before advice, priority 100)
-	for _, fn := range []string{"GetUserData", "DeleteUser", "UpdateSettings"} {
-		aspect.MustAddAdvice(fn, aspect.Advice{
+	for _, fn := range []aspect.FuncKey{"GetUserData", "DeleteUser", "UpdateSettings"} {
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.Before,
 			Priority: 100, // Highest - run first
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogBefore(ctx, 100, "AUTHENTICATION")
-				token := ctx.Args[0].(string)
+			Handler: func(c *aspect.Context) error {
+				utils.LogBefore(c, 100, "AUTHENTICATION")
+				token := c.Args[0].(string)
 
 				log.Printf("   🔐 [AUTH] Validating token: %s", token)
 				session, err := validateToken(token)
 				if err != nil {
-					log.Printf("   ❌ [AUTH FAILED] %s - %v", ctx.FunctionName, err)
+					log.Printf("   ❌ [AUTH FAILED] %s - %v", c.FunctionName, err)
 					return fmt.Errorf("authentication failed: %w", err)
 				}
 
 				// Store authenticated user in metadata
-				ctx.Metadata["userID"] = session.UserID
-				ctx.Metadata["role"] = session.Role
-				log.Printf("   ✅ [AUTH SUCCESS] %s - user: %s, role: %s", ctx.FunctionName, session.UserID, session.Role)
+				c.Metadata["userID"] = session.UserID
+				c.Metadata["role"] = session.Role
+				log.Printf("   ✅ [AUTH SUCCESS] %s - user: %s, role: %s", c.FunctionName, session.UserID, session.Role)
 				log.Printf("   💾 [METADATA] Stored user context for downstream advice")
 				return nil
 			},
@@ -73,13 +75,13 @@ func setupAOP() {
 	}
 
 	// Authorization check for DeleteUser (requires admin role)
-	aspect.MustAddAdvice("DeleteUser", aspect.Advice{
+	registry.MustAddAdvice("DeleteUser", aspect.Advice{
 		Type:     aspect.Before,
 		Priority: 90, // After authentication
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogBefore(ctx, 90, "AUTHORIZATION")
-			role := ctx.Metadata["role"].(string)
-			userID := ctx.Metadata["userID"].(string)
+		Handler: func(c *aspect.Context) error {
+			utils.LogBefore(c, 90, "AUTHORIZATION")
+			role := c.Metadata["role"].(string)
+			userID := c.Metadata["userID"].(string)
 
 			log.Printf("   🛡️  [AUTHZ] Checking if user %s has admin role (current: %s)", userID, role)
 			if role != "admin" {
@@ -93,24 +95,24 @@ func setupAOP() {
 	})
 
 	// Audit logging (After advice)
-	for _, fn := range []string{"DeleteUser", "UpdateSettings"} {
-		aspect.MustAddAdvice(fn, aspect.Advice{
+	for _, fn := range []aspect.FuncKey{"DeleteUser", "UpdateSettings"} {
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.After,
 			Priority: 100,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogAfter(ctx, 100, "AUDIT")
-				userID, _ := ctx.Metadata["userID"].(string)
+			Handler: func(c *aspect.Context) error {
+				utils.LogAfter(c, 100, "AUDIT")
+				userID, _ := c.Metadata["userID"].(string)
 				status := "SUCCESS"
-				if ctx.Error != nil {
+				if c.Error != nil {
 					status = "FAILED"
 				}
 
-				log.Printf("   📋 [AUDIT] Function: %s", ctx.FunctionName)
+				log.Printf("   📋 [AUDIT] Function: %s", c.FunctionName)
 				log.Printf("   👤 [AUDIT] User: %s", userID)
 				log.Printf("   📊 [AUDIT] Status: %s", status)
-				log.Printf("   🎯 [AUDIT] Args: %v", ctx.Args[1:])
-				if ctx.Error != nil {
-					log.Printf("   ❌ [AUDIT] Error: %v", ctx.Error)
+				log.Printf("   🎯 [AUDIT] Args: %v", c.Args[1:])
+				if c.Error != nil {
+					log.Printf("   ❌ [AUDIT] Error: %v", c.Error)
 				}
 				log.Printf("   📝 [AUDIT] Audit trail recorded")
 				return nil
@@ -119,12 +121,12 @@ func setupAOP() {
 	}
 
 	// Success logging for GetUserData
-	aspect.MustAddAdvice("GetUserData", aspect.Advice{
+	registry.MustAddAdvice("GetUserData", aspect.Advice{
 		Type:     aspect.AfterReturning,
 		Priority: 80,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAfterReturning(ctx, 80, "SUCCESS LOG")
-			userID := ctx.Metadata["userID"].(string)
+		Handler: func(c *aspect.Context) error {
+			utils.LogAfterReturning(c, 80, "SUCCESS LOG")
+			userID := c.Metadata["userID"].(string)
 			log.Printf("   📈 [METRICS] User %s successfully accessed data", userID)
 			return nil
 		},
@@ -167,9 +169,9 @@ func updateSettingsImpl(token string, settings map[string]interface{}) error {
 // -------------------------------------------- Wrapped Functions --------------------------------------------
 
 var (
-	GetUserData    = aspect.Wrap2RE("GetUserData", getUserDataImpl)
-	DeleteUser     = aspect.Wrap2E("DeleteUser", deleteUserImpl)
-	UpdateSettings = aspect.Wrap2E("UpdateSettings", updateSettingsImpl)
+	GetUserData    = aspect.Wrap2RE(registry, "GetUserData", getUserDataImpl)
+	DeleteUser     = aspect.Wrap2E(registry, "DeleteUser", deleteUserImpl)
+	UpdateSettings = aspect.Wrap2E(registry, "UpdateSettings", updateSettingsImpl)
 )
 
 // -------------------------------------------- Examples --------------------------------------------

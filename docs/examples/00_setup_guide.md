@@ -49,8 +49,8 @@ func setupLogging() {
         aspect.MustAddAdvice(funcName, aspect.Advice{
             Type: aspect.Before,
             Priority: 100,
-            Handler: func(ctx *aspect.Context) error {
-                log.Printf("[BEFORE] %s called with args: %v", ctx.FunctionName, ctx.Args)
+            Handler: func(c *aspect.Context) error {
+                log.Printf("[BEFORE] %s called with args: %v", c.FunctionName, c.Args)
                 return nil
             },
         })
@@ -66,8 +66,8 @@ func setupTiming() {
         aspect.MustAddAdvice(funcName, aspect.Advice{
             Type: aspect.Before,
             Priority: 90,
-            Handler: func(ctx *aspect.Context) error {
-                ctx.Metadata["startTime"] = time.Now()
+            Handler: func(c *aspect.Context) error {
+                c.Metadata["startTime"] = time.Now()
                 return nil
             },
         })
@@ -76,9 +76,9 @@ func setupTiming() {
         aspect.MustAddAdvice(funcName, aspect.Advice{
             Type: aspect.After,
             Priority: 90,
-            Handler: func(ctx *aspect.Context) error {
-                start := ctx.Metadata["startTime"].(time.Time)
-                log.Printf("[TIMING] %s took %v", ctx.FunctionName, time.Since(start))
+            Handler: func(c *aspect.Context) error {
+                start := c.Metadata["startTime"].(time.Time)
+                log.Printf("[TIMING] %s took %v", c.FunctionName, time.Since(start))
                 return nil
             },
         })
@@ -91,8 +91,8 @@ func setupErrorHandling() {
         aspect.MustAddAdvice(funcName, aspect.Advice{
             Type: aspect.AfterThrowing,
             Priority: 100,
-            Handler: func(ctx *aspect.Context) error {
-                log.Printf("[PANIC] %s panicked: %v", ctx.FunctionName, ctx.PanicValue)
+            Handler: func(c *aspect.Context) error {
+                log.Printf("[PANIC] %s panicked: %v", c.FunctionName, c.PanicValue)
                 // Send alert, record metric, etc.
                 return nil
             },

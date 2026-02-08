@@ -30,33 +30,33 @@ func NewContext(functionName string, args ...any) *Context {
 // -------------------------------------------- Public Functions --------------------------------------------
 
 // SetResult sets a return value at the specified index.
-func (aopCtx *Context) SetResult(index int, value any) {
+func (c *Context) SetResult(index int, value any) {
 	if index < 0 {
 		return // Invalid index
 	}
 
 	// Extend results slice if needed
-	for len(aopCtx.Results) <= index {
-		aopCtx.Results = append(aopCtx.Results, nil)
+	for len(c.Results) <= index {
+		c.Results = append(c.Results, nil)
 	}
-	aopCtx.Results[index] = value
+	c.Results[index] = value
 }
 
 // GetResult retrieves a return value at the specified index.
-func (aopCtx *Context) GetResult(index int) any {
-	if index < 0 || index >= len(aopCtx.Results) {
+func (c *Context) GetResult(index int) any {
+	if index < 0 || index >= len(c.Results) {
 		return nil
 	}
-	return aopCtx.Results[index]
+	return c.Results[index]
 }
 
 // HasPanic returns true if a panic was recovered during execution.
-func (aopCtx *Context) HasPanic() bool {
-	return aopCtx.PanicValue != nil
+func (c *Context) HasPanic() bool {
+	return c.PanicValue != nil
 }
 
 // String returns a formatted string representation of the context implementing fmt.Stringer interface.
-func (aopCtx *Context) String() string {
+func (c *Context) String() string {
 	return fmt.Sprintf("Context{Function: %s, Args: %v, Results: %v, Error: %v, Panic: %v}",
-		aopCtx.FunctionName, aopCtx.Args, aopCtx.Results, aopCtx.Error, aopCtx.PanicValue)
+		c.FunctionName, c.Args, c.Results, c.Error, c.PanicValue)
 }

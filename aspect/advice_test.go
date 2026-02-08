@@ -16,7 +16,7 @@ func TestAdviceChain_ExecutionOrder(t *testing.T) {
 	chain.Add(Advice{
 		Type:     Before,
 		Priority: 10,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			order = append(order, "before-10")
 			return nil
 		},
@@ -24,14 +24,14 @@ func TestAdviceChain_ExecutionOrder(t *testing.T) {
 	chain.Add(Advice{
 		Type:     Before,
 		Priority: 20,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			order = append(order, "before-20")
 			return nil
 		},
 	})
 
-	ctx := NewContext("test")
-	_ = chain.ExecuteBefore(ctx)
+	c := NewContext("test")
+	_ = chain.ExecuteBefore(c)
 
 	// Higher priority should execute first
 	if len(order) != 2 {
@@ -51,13 +51,13 @@ func TestAdviceChain_ErrorPropagation(t *testing.T) {
 	chain.Add(Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			return errors.New("advice failed")
 		},
 	})
 
-	ctx := NewContext("test")
-	err := chain.ExecuteBefore(ctx)
+	c := NewContext("test")
+	err := chain.ExecuteBefore(c)
 
 	if err == nil {
 		t.Fatal("expected error from advice, got nil")
@@ -65,63 +65,64 @@ func TestAdviceChain_ErrorPropagation(t *testing.T) {
 }
 
 func TestContext_SetAndGetResult(t *testing.T) {
-	ctx := NewContext("test")
+	c := NewContext("test")
 
-	ctx.SetResult(0, "hello")
-	ctx.SetResult(1, 42)
+	c.SetResult(0, "hello")
+	c.SetResult(1, 42)
 
-	result0 := ctx.GetResult(0)
+	result0 := c.GetResult(0)
 	if result0 != "hello" {
 		t.Errorf("expected 'hello', got %v", result0)
 	}
 
-	result1 := ctx.GetResult(1)
+	result1 := c.GetResult(1)
 	if result1 != 42 {
 		t.Errorf("expected 42, got %v", result1)
 	}
 
 	// Out of bounds should return nil
-	result2 := ctx.GetResult(999)
+	result2 := c.GetResult(999)
 	if result2 != nil {
 		t.Errorf("expected nil for out of bounds, got %v", result2)
 	}
 }
 
 func TestContext_HasPanic(t *testing.T) {
-	ctx := NewContext("test")
+	c := NewContext("test")
 
-	if ctx.HasPanic() {
+	if c.HasPanic() {
 		t.Error("expected HasPanic to be false initially")
 	}
 
-	ctx.PanicValue = "something went wrong"
+	c.PanicValue = "something went wrong"
 
-	if !ctx.HasPanic() {
+	if !c.HasPanic() {
 		t.Error("expected HasPanic to be true after setting PanicValue")
 	}
 }
 
 func TestWrap1R_BasicExecution(t *testing.T) {
-	MustRegister("TestFunc")
+	registry := NewRegistry()
+	registry.MustRegister("TestFunc")
 
 	var beforeCalled, afterCalled bool
 
-	MustAddAdvice("TestFunc", Advice{
+	registry.MustAddAdvice("TestFunc", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			beforeCalled = true
-			if len(ctx.Args) != 1 {
-				t.Errorf("expected 1 arg, got %d", len(ctx.Args))
+			if len(c.Args) != 1 {
+				t.Errorf("expected 1 arg, got %d", len(c.Args))
 			}
 			return nil
 		},
 	})
 
-	MustAddAdvice("TestFunc", Advice{
+	registry.MustAddAdvice("TestFunc", Advice{
 		Type:     After,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			afterCalled = true
 			return nil
 		},
@@ -131,7 +132,7 @@ func TestWrap1R_BasicExecution(t *testing.T) {
 		return x * 2
 	}
 
-	wrapped := Wrap1R("TestFunc", fn)
+	wrapped := Wrap1R(registry, "TestFunc", fn)
 	result := wrapped(5)
 
 	if result != 10 {
@@ -146,19 +147,20 @@ func TestWrap1R_BasicExecution(t *testing.T) {
 		t.Error("After advice was not called")
 	}
 
-	Unregister("TestFunc")
+	registry.Unregister("TestFunc")
 }
 
 func TestWrap1RE_ErrorCapture(t *testing.T) {
-	MustRegister("TestFuncError")
+	registry := NewRegistry()
+	registry.MustRegister("TestFuncError")
 
 	var capturedError error
 
-	MustAddAdvice("TestFuncError", Advice{
+	registry.MustAddAdvice("TestFuncError", Advice{
 		Type:     After,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			capturedError = ctx.Error
+		Handler: func(c *Context) error {
+			capturedError = c.Error
 			return nil
 		},
 	})
@@ -170,7 +172,7 @@ func TestWrap1RE_ErrorCapture(t *testing.T) {
 		return x * 2, nil
 	}
 
-	wrapped := Wrap1RE("TestFuncError", fn)
+	wrapped := Wrap1RE(registry, "TestFuncError", fn)
 	_, err := wrapped(0)
 
 	if err == nil {
@@ -185,18 +187,19 @@ func TestWrap1RE_ErrorCapture(t *testing.T) {
 		t.Errorf("unexpected error message: %s", capturedError.Error())
 	}
 
-	Unregister("TestFuncError")
+	registry.Unregister("TestFuncError")
 }
 
 func TestAfterReturning_OnlyOnSuccess(t *testing.T) {
-	MustRegister("TestAfterReturning")
+	registry := NewRegistry()
+	registry.MustRegister("TestAfterReturning")
 
 	var afterReturningCalled bool
 
-	MustAddAdvice("TestAfterReturning", Advice{
+	registry.MustAddAdvice("TestAfterReturning", Advice{
 		Type:     AfterReturning,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			afterReturningCalled = true
 			return nil
 		},
@@ -207,7 +210,7 @@ func TestAfterReturning_OnlyOnSuccess(t *testing.T) {
 		return x * 2, nil
 	}
 
-	wrapped := Wrap1RE("TestAfterReturning", successFn)
+	wrapped := Wrap1RE(registry, "TestAfterReturning", successFn)
 	_, _ = wrapped(5)
 
 	if !afterReturningCalled {
@@ -222,28 +225,29 @@ func TestAfterReturning_OnlyOnSuccess(t *testing.T) {
 		return 0, errors.New("error")
 	}
 
-	wrapped2 := Wrap1RE("TestAfterReturning", errorFn)
+	wrapped2 := Wrap1RE(registry, "TestAfterReturning", errorFn)
 	_, _ = wrapped2(5)
 
 	if afterReturningCalled {
 		t.Error("AfterReturning should NOT be called on error")
 	}
 
-	Unregister("TestAfterReturning")
+	registry.Unregister("TestAfterReturning")
 }
 
 func TestAfterThrowing_OnPanic(t *testing.T) {
-	MustRegister("TestAfterThrowing")
+	registry := NewRegistry()
+	registry.MustRegister("TestAfterThrowing")
 
 	var afterThrowingCalled bool
 	var capturedPanic interface{}
 
-	MustAddAdvice("TestAfterThrowing", Advice{
+	registry.MustAddAdvice("TestAfterThrowing", Advice{
 		Type:     AfterThrowing,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			afterThrowingCalled = true
-			capturedPanic = ctx.PanicValue
+			capturedPanic = c.PanicValue
 			return nil
 		},
 	})
@@ -254,7 +258,7 @@ func TestAfterThrowing_OnPanic(t *testing.T) {
 		}
 	}
 
-	wrapped := Wrap1("TestAfterThrowing", panicFn)
+	wrapped := Wrap1(registry, "TestAfterThrowing", panicFn)
 
 	// Catch the re-panic
 	defer func() {
@@ -274,17 +278,18 @@ func TestAfterThrowing_OnPanic(t *testing.T) {
 		t.Error("panic value should be captured")
 	}
 
-	Unregister("TestAfterThrowing")
+	registry.Unregister("TestAfterThrowing")
 }
 
 func TestAround_SkipExecution(t *testing.T) {
-	MustRegister("TestAround")
-	MustAddAdvice("TestAround", Advice{
+	registry := NewRegistry()
+	registry.MustRegister("TestAround")
+	registry.MustAddAdvice("TestAround", Advice{
 		Type:     Around,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			ctx.Skipped = true
-			ctx.SetResult(0, 999) // Return custom value
+		Handler: func(c *Context) error {
+			c.Skipped = true
+			c.SetResult(0, 999) // Return custom value
 			return nil
 		},
 	})
@@ -295,7 +300,7 @@ func TestAround_SkipExecution(t *testing.T) {
 		return x * 2
 	}
 
-	wrapped := Wrap1R("TestAround", fn)
+	wrapped := Wrap1R(registry, "TestAround", fn)
 	result := wrapped(5)
 
 	if targetCalled {
@@ -306,5 +311,5 @@ func TestAround_SkipExecution(t *testing.T) {
 		t.Errorf("expected result from Around advice (999), got %d", result)
 	}
 
-	Unregister("TestAround")
+	registry.Unregister("TestAround")
 }

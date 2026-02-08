@@ -6,11 +6,6 @@ import (
 	"sync"
 )
 
-// -------------------------------------------- Constants & Variables --------------------------------------------
-
-// globalRegistry is the default registry instance.
-var globalRegistry = NewRegistry()
-
 // -------------------------------------------- Types --------------------------------------------
 
 // Registry stores function references and their associated advice chains.
@@ -173,78 +168,4 @@ func (registry *Registry) GetAdviceCount(functionName string) int {
 	}
 
 	return chain.Count()
-}
-
-// -------------------------------------------- Global Registry Functions --------------------------------------------
-
-// Register registers a function in the global registry.
-func Register(name string) error {
-	return globalRegistry.Register(name)
-}
-
-// RegisterOrGet registers/gets a function in the global registry.
-func RegisterOrGet(name string) *AdviceChain {
-	return globalRegistry.RegisterOrGet(name)
-}
-
-// MustRegister registers a function in the global registry and panics on error.
-func MustRegister(name string) {
-	globalRegistry.MustRegister(name)
-}
-
-// AddAdvice adds advice to a function in the global registry.
-func AddAdvice(functionName string, advice Advice) error {
-	return globalRegistry.AddAdvice(functionName, advice)
-}
-
-// MustAddAdvice adds advice to the global registry and panics on error.
-func MustAddAdvice(functionName string, advice Advice) {
-	globalRegistry.MustAddAdvice(functionName, advice)
-}
-
-// GetAdviceChain retrieves advice chain from the global registry.
-func GetAdviceChain(functionName string) (*AdviceChain, error) {
-	return globalRegistry.GetAdviceChain(functionName)
-}
-
-// IsRegistered checks if a function is registered in the global registry.
-func IsRegistered(name string) bool {
-	return globalRegistry.IsRegistered(name)
-}
-
-// Unregister removes a function from the global registry.
-func Unregister(name string) {
-	globalRegistry.Unregister(name)
-}
-
-// ListRegistered returns all registered function names from the global registry.
-func ListRegistered() []string {
-	return globalRegistry.ListRegistered()
-}
-
-// Clear removes all registered functions from the global registry.
-func Clear() {
-	globalRegistry.Clear()
-}
-
-// Count returns the number of registered functions in the global registry.
-func Count() int {
-	return globalRegistry.Count()
-}
-
-// GetAdviceCount returns the total number of advice for a function in the global registry.
-func GetAdviceCount(functionName string) int {
-	return globalRegistry.GetAdviceCount(functionName)
-}
-
-// GetGlobalRegistry returns the global registry instance.
-// Use this if you need direct access to the global registry.
-func GetGlobalRegistry() *Registry {
-	return globalRegistry
-}
-
-// SetGlobalRegistry replaces the global registry.
-// Useful for testing or custom registry implementations.
-func SetGlobalRegistry(registry *Registry) {
-	globalRegistry = registry
 }

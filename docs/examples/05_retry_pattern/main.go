@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/seyallius/gosaidsno/aspect"
-	"github.com/seyallius/gosaidsno/examples/utils"
+	"github.com/seyallius/gosaidsno/docs/examples/utils"
 )
 
 // -------------------------------------------- Retry Wrapper --------------------------------------------
@@ -50,37 +50,39 @@ func WithRetry[T any](fn func() (T, error), maxRetries int, baseDelay time.Durat
 
 // -------------------------------------------- Setup --------------------------------------------
 
+var registry = aspect.NewRegistry()
+
 func setupAOP() {
 	log.Println("=== Setting up Monitoring AOP ===")
 
-	aspect.MustRegister("SendEmail")
-	aspect.MustRegister("ProcessPayment")
+	registry.MustRegister("SendEmail")
+	registry.MustRegister("ProcessPayment")
 
 	// Add timing for monitoring
-	for _, fn := range []string{"SendEmail", "ProcessPayment"} {
-		aspect.MustAddAdvice(fn, aspect.Advice{
+	for _, fn := range []aspect.FuncKey{"SendEmail", "ProcessPayment"} {
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.Before,
 			Priority: 100,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogBefore(ctx, 100, "TIMING START")
-				ctx.Metadata["start"] = time.Now()
+			Handler: func(c *aspect.Context) error {
+				utils.LogBefore(c, 100, "TIMING START")
+				c.Metadata["start"] = time.Now()
 				log.Printf("   ⏱️  [TIMING] Started execution timer")
 				return nil
 			},
 		})
 
-		aspect.MustAddAdvice(fn, aspect.Advice{
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.After,
 			Priority: 100,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogAfter(ctx, 100, "TIMING END")
-				start := ctx.Metadata["start"].(time.Time)
+			Handler: func(c *aspect.Context) error {
+				utils.LogAfter(c, 100, "TIMING END")
+				start := c.Metadata["start"].(time.Time)
 				duration := time.Since(start)
 				status := "SUCCESS"
-				if ctx.Error != nil {
+				if c.Error != nil {
 					status = "FAILED"
 				}
-				log.Printf("   📊 [MONITOR] %s %s in %v", ctx.FunctionName, status, duration)
+				log.Printf("   📊 [MONITOR] %s %s in %v", c.FunctionName, status, duration)
 				log.Printf("   📈 [METRICS] Execution completed with status: %s", status)
 				return nil
 			},
@@ -88,13 +90,13 @@ func setupAOP() {
 	}
 
 	// Add detailed logging for email service
-	aspect.MustAddAdvice("SendEmail", aspect.Advice{
+	registry.MustAddAdvice("SendEmail", aspect.Advice{
 		Type:     aspect.Before,
 		Priority: 90,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogBefore(ctx, 90, "EMAIL LOG")
-			to := ctx.Args[0].(string)
-			subject := ctx.Args[1].(string)
+		Handler: func(c *aspect.Context) error {
+			utils.LogBefore(c, 90, "EMAIL LOG")
+			to := c.Args[0].(string)
+			subject := c.Args[1].(string)
 			log.Printf("   📧 [EMAIL] Preparing to send email to: %s", to)
 			log.Printf("   📝 [EMAIL] Subject: %s", subject)
 			return nil
@@ -102,13 +104,13 @@ func setupAOP() {
 	})
 
 	// Add detailed logging for payment service
-	aspect.MustAddAdvice("ProcessPayment", aspect.Advice{
+	registry.MustAddAdvice("ProcessPayment", aspect.Advice{
 		Type:     aspect.Before,
 		Priority: 90,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogBefore(ctx, 90, "PAYMENT LOG")
-			amount := ctx.Args[0].(float64)
-			cardToken := ctx.Args[1].(string)
+		Handler: func(c *aspect.Context) error {
+			utils.LogBefore(c, 90, "PAYMENT LOG")
+			amount := c.Args[0].(float64)
+			cardToken := c.Args[1].(string)
 			log.Printf("   💳 [PAYMENT] Processing payment: $%.2f", amount)
 			log.Printf("   🔐 [PAYMENT] Card token: %s...", cardToken[:8])
 			return nil
@@ -187,7 +189,7 @@ func SendEmail(to, subject string) error {
 	return err
 }
 
-var sendEmailBase = aspect.Wrap2E("SendEmail", sendEmailImpl)
+var sendEmailBase = aspect.Wrap2E(registry, "SendEmail", sendEmailImpl)
 
 // ProcessPayment with retry wrapper
 func ProcessPayment(amount float64, cardToken string) (string, error) {
@@ -209,7 +211,7 @@ func ProcessPayment(amount float64, cardToken string) (string, error) {
 	return result, err
 }
 
-var processPaymentBase = aspect.Wrap2RE("ProcessPayment", processPaymentImpl)
+var processPaymentBase = aspect.Wrap2RE(registry, "ProcessPayment", processPaymentImpl)
 
 // -------------------------------------------- Examples --------------------------------------------
 

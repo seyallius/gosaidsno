@@ -94,7 +94,7 @@ Establish clear naming for functions and metadata to avoid collisions:
 ```go
 // Good: Descriptive names with namespace
 aspect.Register("UserService.GetUserByID")
-ctx.Metadata["user_service.authenticated_user"]
+c.Metadata["user_service.authenticated_user"]
 ```
 
 ### Priority Management
@@ -108,14 +108,14 @@ Coordinate priority ranges across teams:
 ### Error Handling
 Design robust error handling within advice:
 ```go
-Handler: func(ctx *aspect.Context) error {
+Handler: func(c *aspect.Context) error {
     // Validate context state
-    if ctx.Args == nil || len(ctx.Args) == 0 {
+    if c.Args == nil || len(c.Args) == 0 {
         return errors.New("missing required arguments")
     }
     
     // Safe type assertion
-    if userID, ok := ctx.Args[0].(int); !ok {
+    if userID, ok := c.Args[0].(int); !ok {
         return errors.New("invalid user ID type")
     }
     

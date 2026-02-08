@@ -66,14 +66,14 @@ Advice errors can halt execution, so handle them appropriately:
 ```go
 aspect.AddAdvice("MyFunc", aspect.Advice{
     Type: aspect.Before,
-    Handler: func(ctx *aspect.Context) error {
+    Handler: func(c *aspect.Context) error {
         // Always validate inputs
-        if ctx.Args == nil || len(ctx.Args) < 1 {
+        if c.Args == nil || len(c.Args) < 1 {
             return errors.New("missing required arguments")
         }
         
         // Safe type assertions
-        userID, ok := ctx.Args[0].(int)
+        userID, ok := c.Args[0].(int)
         if !ok {
             return errors.New("invalid user ID type")
         }
@@ -84,7 +84,7 @@ aspect.AddAdvice("MyFunc", aspect.Advice{
             return fmt.Errorf("failed to get user: %w", err)
         }
         
-        ctx.Metadata["user"] = user
+        c.Metadata["user"] = user
         return nil
     },
 })
@@ -111,8 +111,8 @@ const (
 )
 
 // Safe metadata access
-func getUserFromContext(ctx *aspect.Context) (*User, error) {
-    userData, exists := ctx.Metadata[MetadataUser]
+func getUserFromContext(c *aspect.Context) (*User, error) {
+    userData, exists := c.Metadata[MetadataUser]
     if !exists {
         return nil, errors.New("user not found in context")
     }
@@ -143,8 +143,8 @@ func TestLoggingAdvice(t *testing.T) {
     advice := loggingAdviceWithLogger(logCapture)
     
     // Test the advice directly
-    ctx := aspect.NewContext("TestFunc", "arg1")
-    err := advice.Handler(ctx)
+    c := aspect.NewContext("TestFunc", "arg1")
+    err := advice.Handler(c)
     
     if err != nil {
         t.Errorf("Expected no error, got: %v", err)

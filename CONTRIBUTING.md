@@ -109,10 +109,10 @@ If you need to add support for a new function signature:
    return func(a A, b B, c C) (R, error) {
        var result R
        var err error
-       executeWithAdvice(name, func(ctx *Context) {
+       executeWithAdvice(name, func(c *Context) {
            result, err = fn(a, b, c)
-           ctx.SetResult(0, result)
-           ctx.Error = err
+           c.SetResult(0, result)
+           c.Error = err
        }, a, b, c)
        return result, err
    }

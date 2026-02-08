@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/seyallius/gosaidsno/aspect"
-	"github.com/seyallius/gosaidsno/examples/utils"
+	"github.com/seyallius/gosaidsno/docs/examples/utils"
 )
 
 // -------------------------------------------- Domain Models --------------------------------------------
@@ -27,14 +27,16 @@ type Order struct {
 
 // -------------------------------------------- Setup --------------------------------------------
 
+var registry = aspect.NewRegistry()
+
 func setupAOP() {
 	log.Println("=== Setting up AOP ===")
 
 	// Register all functions
-	aspect.MustRegister("GetUser")
-	aspect.MustRegister("CreateOrder")
-	aspect.MustRegister("ValidateUser")
-	aspect.MustRegister("SendNotification")
+	registry.MustRegister("GetUser")
+	registry.MustRegister("CreateOrder")
+	registry.MustRegister("ValidateUser")
+	registry.MustRegister("SendNotification")
 
 	setupLogging()
 	setupTiming()
@@ -46,29 +48,29 @@ func setupAOP() {
 }
 
 func setupLogging() {
-	for _, fn := range []string{"GetUser", "CreateOrder", "SendNotification"} {
-		aspect.MustAddAdvice(fn, aspect.Advice{
+	for _, fn := range []aspect.FuncKey{"GetUser", "CreateOrder", "SendNotification"} {
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.Before,
 			Priority: 100,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogBefore(ctx, 100, "LOGGING")
-				log.Printf("   📝 [LOG] Starting %s with args: %v", ctx.FunctionName, ctx.Args)
+			Handler: func(c *aspect.Context) error {
+				utils.LogBefore(c, 100, "LOGGING")
+				log.Printf("   📝 [LOG] Starting %s with args: %v", c.FunctionName, c.Args)
 				return nil
 			},
 		})
 
-		aspect.MustAddAdvice(fn, aspect.Advice{
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.After,
 			Priority: 100,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogAfter(ctx, 100, "LOGGING")
+			Handler: func(c *aspect.Context) error {
+				utils.LogAfter(c, 100, "LOGGING")
 				status := "SUCCESS"
-				if ctx.Error != nil {
+				if c.Error != nil {
 					status = "FAILED"
 				}
-				log.Printf("   📝 [LOG] Completed %s - Status: %s", ctx.FunctionName, status)
-				if ctx.Error != nil {
-					log.Printf("   ❌ Error: %v", ctx.Error)
+				log.Printf("   📝 [LOG] Completed %s - Status: %s", c.FunctionName, status)
+				if c.Error != nil {
+					log.Printf("   ❌ Error: %v", c.Error)
 				}
 				return nil
 			},
@@ -77,29 +79,29 @@ func setupLogging() {
 }
 
 func setupTiming() {
-	for _, fn := range []string{"GetUser", "CreateOrder"} {
-		aspect.MustAddAdvice(fn, aspect.Advice{
+	for _, fn := range []aspect.FuncKey{"GetUser", "CreateOrder"} {
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.Before,
 			Priority: 90,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogBefore(ctx, 90, "TIMING")
-				ctx.Metadata["start"] = time.Now()
-				log.Printf("   ⏱️  [TIMING] Started timer for %s", ctx.FunctionName)
+			Handler: func(c *aspect.Context) error {
+				utils.LogBefore(c, 90, "TIMING")
+				c.Metadata["start"] = time.Now()
+				log.Printf("   ⏱️  [TIMING] Started timer for %s", c.FunctionName)
 				return nil
 			},
 		})
 
-		aspect.MustAddAdvice(fn, aspect.Advice{
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.After,
 			Priority: 90,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogAfter(ctx, 90, "TIMING")
-				start, ok := ctx.Metadata["start"].(time.Time)
+			Handler: func(c *aspect.Context) error {
+				utils.LogAfter(c, 90, "TIMING")
+				start, ok := c.Metadata["start"].(time.Time)
 				if !ok {
 					return nil // Skip if timing not initialized
 				}
 				duration := time.Since(start)
-				log.Printf("   ⏱️  [PERF] %s took %v", ctx.FunctionName, duration)
+				log.Printf("   ⏱️  [PERF] %s took %v", c.FunctionName, duration)
 				return nil
 			},
 		})
@@ -107,13 +109,13 @@ func setupTiming() {
 }
 
 func setupValidation() {
-	aspect.MustAddAdvice("CreateOrder", aspect.Advice{
+	registry.MustAddAdvice("CreateOrder", aspect.Advice{
 		Type:     aspect.Before,
 		Priority: 110, // Higher priority, runs first
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogBefore(ctx, 110, "VALIDATION")
-			userID := ctx.Args[0].(string)
-			amount := ctx.Args[1].(float64)
+		Handler: func(c *aspect.Context) error {
+			utils.LogBefore(c, 110, "VALIDATION")
+			userID := c.Args[0].(string)
+			amount := c.Args[1].(float64)
 
 			if userID == "" {
 				log.Printf("   ❌ [VALIDATE] userID cannot be empty")
@@ -130,13 +132,13 @@ func setupValidation() {
 }
 
 func setupPanicRecovery() {
-	for _, fn := range aspect.ListRegistered() {
-		aspect.MustAddAdvice(fn, aspect.Advice{
+	for _, fn := range registry.ListRegistered() {
+		registry.MustAddAdvice(fn, aspect.Advice{
 			Type:     aspect.AfterThrowing,
 			Priority: 100,
-			Handler: func(ctx *aspect.Context) error {
-				utils.LogAfterThrowing(ctx, 100, "PANIC RECOVERY")
-				log.Printf("   🚨 [PANIC RECOVERY] Function %s panicked: %v", ctx.FunctionName, ctx.PanicValue)
+			Handler: func(c *aspect.Context) error {
+				utils.LogAfterThrowing(c, 100, "PANIC RECOVERY")
+				log.Printf("   🚨 [PANIC RECOVERY] Function %s panicked: %v", c.FunctionName, c.PanicValue)
 				log.Printf("   🔧 [RECOVERY] Recovered from panic, continuing execution")
 				return nil
 			},
@@ -198,10 +200,10 @@ func sendNotificationImpl(userID, message string) {
 // -------------------------------------------- Wrapped Functions --------------------------------------------
 
 var (
-	GetUser          = aspect.Wrap1RE("GetUser", getUserImpl)
-	CreateOrder      = aspect.Wrap2RE("CreateOrder", createOrderImpl)
-	ValidateUser     = aspect.Wrap1E("ValidateUser", validateUserImpl)
-	SendNotification = aspect.Wrap2("SendNotification", sendNotificationImpl)
+	GetUser          = aspect.Wrap1RE(registry, "GetUser", getUserImpl)
+	CreateOrder      = aspect.Wrap2RE(registry, "CreateOrder", createOrderImpl)
+	ValidateUser     = aspect.Wrap1E(registry, "ValidateUser", validateUserImpl)
+	SendNotification = aspect.Wrap2(registry, "SendNotification", sendNotificationImpl)
 )
 
 // -------------------------------------------- Examples --------------------------------------------
@@ -269,13 +271,13 @@ func example4_AfterReturning() {
 	fmt.Println("\n========== Example 4: AfterReturning (Success-only logic) ==========")
 
 	// Add AfterReturning advice
-	aspect.MustAddAdvice("CreateOrder", aspect.Advice{
+	registry.MustAddAdvice("CreateOrder", aspect.Advice{
 		Type:     aspect.AfterReturning,
 		Priority: 50,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAfterReturning(ctx, 50, "SUCCESS HOOK")
+		Handler: func(c *aspect.Context) error {
+			utils.LogAfterReturning(c, 50, "SUCCESS HOOK")
 			log.Printf("   🎉 [SUCCESS HOOK] Order created successfully, sending confirmation...")
-			order := ctx.Results[0].(*Order)
+			order := c.Results[0].(*Order)
 			SendNotification(order.UserID, fmt.Sprintf("Order %s confirmed!", order.ID))
 			return nil
 		},

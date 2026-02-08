@@ -35,7 +35,7 @@ Using `[]any` provides flexibility but sacrifices type safety. This is a deliber
 Always type-assert carefully when accessing Args/Results:
 ```go
 // Safe type assertion
-if arg, ok := ctx.Args[0].(string); ok {
+if arg, ok := c.Args[0].(string); ok {
     // Use arg safely
 } else {
     // Handle type mismatch
@@ -48,10 +48,10 @@ The Metadata field enables communication between different advice functions:
 
 ```go
 // Authentication advice sets user info
-ctx.Metadata["user"] = authenticatedUser
+c.Metadata["user"] = authenticatedUser
 
 // Authorization advice reads user info
-user := ctx.Metadata["user"].(*User)
+user := c.Metadata["user"].(*User)
 ```
 
 ### Considerations:

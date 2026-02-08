@@ -11,10 +11,11 @@ import (
 
 func TestIntegration_CompleteWorkflow(t *testing.T) {
 	// Clean up
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
 	// Register function
-	err := Register("CompleteWorkflow")
+	err := registry.Register("CompleteWorkflow")
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
@@ -23,40 +24,40 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 	var executionOrder []string
 
 	// Add Before advice
-	_ = AddAdvice("CompleteWorkflow", Advice{
+	_ = registry.AddAdvice("CompleteWorkflow", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			executionOrder = append(executionOrder, "before")
 			return nil
 		},
 	})
 
 	// Add Around advice
-	_ = AddAdvice("CompleteWorkflow", Advice{
+	_ = registry.AddAdvice("CompleteWorkflow", Advice{
 		Type:     Around,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			executionOrder = append(executionOrder, "around")
 			return nil
 		},
 	})
 
 	// Add AfterReturning advice
-	_ = AddAdvice("CompleteWorkflow", Advice{
+	_ = registry.AddAdvice("CompleteWorkflow", Advice{
 		Type:     AfterReturning,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			executionOrder = append(executionOrder, "afterReturning")
 			return nil
 		},
 	})
 
 	// Add After advice
-	_ = AddAdvice("CompleteWorkflow", Advice{
+	_ = registry.AddAdvice("CompleteWorkflow", Advice{
 		Type:     After,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			executionOrder = append(executionOrder, "after")
 			return nil
 		},
@@ -69,7 +70,7 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 	}
 
 	// Wrap and execute
-	wrapped := Wrap1R("CompleteWorkflow", targetFunc)
+	wrapped := Wrap1R(registry, "CompleteWorkflow", targetFunc)
 	result := wrapped(5)
 
 	// Verify result
@@ -90,31 +91,32 @@ func TestIntegration_CompleteWorkflow(t *testing.T) {
 	}
 
 	// Clean up
-	Clear()
+	registry.Clear()
 }
 
 func TestIntegration_TimingPattern(t *testing.T) {
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
-	_ = Register("TimedOperation")
+	_ = registry.Register("TimedOperation")
 
 	// Before: record start time
-	_ = AddAdvice("TimedOperation", Advice{
+	_ = registry.AddAdvice("TimedOperation", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			ctx.Metadata["startTime"] = time.Now()
+		Handler: func(c *Context) error {
+			c.Metadata["startTime"] = time.Now()
 			return nil
 		},
 	})
 
 	// After: calculate duration
 	var duration time.Duration
-	_ = AddAdvice("TimedOperation", Advice{
+	_ = registry.AddAdvice("TimedOperation", Advice{
 		Type:     After,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			startTime := ctx.Metadata["startTime"].(time.Time)
+		Handler: func(c *Context) error {
+			startTime := c.Metadata["startTime"].(time.Time)
 			duration = time.Since(startTime)
 			return nil
 		},
@@ -125,20 +127,21 @@ func TestIntegration_TimingPattern(t *testing.T) {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	}
 
-	wrapped := Wrap1("TimedOperation", targetFunc)
+	wrapped := Wrap1(registry, "TimedOperation", targetFunc)
 	wrapped(50)
 
 	if duration < 50*time.Millisecond {
 		t.Errorf("expected duration >= 50ms, got %v", duration)
 	}
 
-	Clear()
+	registry.Clear()
 }
 
 func TestIntegration_CachingPattern(t *testing.T) {
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
-	_ = Register("CachedFetch")
+	_ = registry.Register("CachedFetch")
 
 	cache := make(map[string]string)
 	cache["key1"] = "cached_value"
@@ -146,14 +149,14 @@ func TestIntegration_CachingPattern(t *testing.T) {
 	var targetExecuted bool
 
 	// Around: check cache
-	_ = AddAdvice("CachedFetch", Advice{
+	_ = registry.AddAdvice("CachedFetch", Advice{
 		Type:     Around,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			key := ctx.Args[0].(string)
+		Handler: func(c *Context) error {
+			key := c.Args[0].(string)
 			if cached, ok := cache[key]; ok {
-				ctx.SetResult(0, cached)
-				ctx.Skipped = true
+				c.SetResult(0, cached)
+				c.Skipped = true
 			}
 			return nil
 		},
@@ -164,7 +167,7 @@ func TestIntegration_CachingPattern(t *testing.T) {
 		return "fresh_value"
 	}
 
-	wrapped := Wrap1R("CachedFetch", targetFunc)
+	wrapped := Wrap1R(registry, "CachedFetch", targetFunc)
 
 	// Cache hit
 	targetExecuted = false
@@ -186,24 +189,25 @@ func TestIntegration_CachingPattern(t *testing.T) {
 		t.Error("target should execute on cache miss")
 	}
 
-	Clear()
+	registry.Clear()
 }
 
 func TestIntegration_PanicRecoveryPattern(t *testing.T) {
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
-	_ = Register("RiskyOperation")
+	_ = registry.Register("RiskyOperation")
 
 	var panicCaught bool
 	var panicValue interface{}
 
 	// AfterThrowing: catch panic
-	_ = AddAdvice("RiskyOperation", Advice{
+	_ = registry.AddAdvice("RiskyOperation", Advice{
 		Type:     AfterThrowing,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			panicCaught = true
-			panicValue = ctx.PanicValue
+			panicValue = c.PanicValue
 			return nil
 		},
 	})
@@ -214,7 +218,7 @@ func TestIntegration_PanicRecoveryPattern(t *testing.T) {
 		}
 	}
 
-	wrapped := Wrap1("RiskyOperation", targetFunc)
+	wrapped := Wrap1(registry, "RiskyOperation", targetFunc)
 
 	// Normal execution
 	wrapped(10) // Should not panic
@@ -239,22 +243,23 @@ func TestIntegration_PanicRecoveryPattern(t *testing.T) {
 		t.Errorf("unexpected panic value: %v", panicValue)
 	}
 
-	Clear()
+	registry.Clear()
 }
 
 func TestIntegration_ErrorHandlingPattern(t *testing.T) {
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
-	_ = Register("ErrorOperation")
+	_ = registry.Register("ErrorOperation")
 
 	var capturedError error
 
 	// After: capture error
-	_ = AddAdvice("ErrorOperation", Advice{
+	_ = registry.AddAdvice("ErrorOperation", Advice{
 		Type:     After,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			capturedError = ctx.Error
+		Handler: func(c *Context) error {
+			capturedError = c.Error
 			return nil
 		},
 	})
@@ -266,7 +271,7 @@ func TestIntegration_ErrorHandlingPattern(t *testing.T) {
 		return nil
 	}
 
-	wrapped := Wrap1E("ErrorOperation", targetFunc)
+	wrapped := Wrap1E(registry, "ErrorOperation", targetFunc)
 
 	// Success case
 	err := wrapped(10)
@@ -289,39 +294,40 @@ func TestIntegration_ErrorHandlingPattern(t *testing.T) {
 		t.Errorf("unexpected error message: %s", capturedError.Error())
 	}
 
-	Clear()
+	registry.Clear()
 }
 
 func TestIntegration_MultipleAdvicePriority(t *testing.T) {
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
-	_ = Register("PriorityTest")
+	_ = registry.Register("PriorityTest")
 
 	var executionOrder []int
 
 	// Add advice with different priorities
-	_ = AddAdvice("PriorityTest", Advice{
+	_ = registry.AddAdvice("PriorityTest", Advice{
 		Type:     Before,
 		Priority: 10,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			executionOrder = append(executionOrder, 10)
 			return nil
 		},
 	})
 
-	_ = AddAdvice("PriorityTest", Advice{
+	_ = registry.AddAdvice("PriorityTest", Advice{
 		Type:     Before,
 		Priority: 50,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			executionOrder = append(executionOrder, 50)
 			return nil
 		},
 	})
 
-	_ = AddAdvice("PriorityTest", Advice{
+	_ = registry.AddAdvice("PriorityTest", Advice{
 		Type:     Before,
 		Priority: 30,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			executionOrder = append(executionOrder, 30)
 			return nil
 		},
@@ -329,7 +335,7 @@ func TestIntegration_MultipleAdvicePriority(t *testing.T) {
 
 	targetFunc := func() {}
 
-	wrapped := Wrap0("PriorityTest", targetFunc)
+	wrapped := Wrap0(registry, "PriorityTest", targetFunc)
 	wrapped()
 
 	// Should execute in order: 50, 30, 10 (highest priority first)
@@ -344,20 +350,21 @@ func TestIntegration_MultipleAdvicePriority(t *testing.T) {
 		}
 	}
 
-	Clear()
+	registry.Clear()
 }
 
 func TestIntegration_AfterReturningOnlyOnSuccess(t *testing.T) {
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
-	_ = Register("ConditionalSuccess")
+	_ = registry.Register("ConditionalSuccess")
 
 	var afterReturningCalled bool
 
-	_ = AddAdvice("ConditionalSuccess", Advice{
+	_ = registry.AddAdvice("ConditionalSuccess", Advice{
 		Type:     AfterReturning,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
+		Handler: func(c *Context) error {
 			afterReturningCalled = true
 			return nil
 		},
@@ -368,7 +375,7 @@ func TestIntegration_AfterReturningOnlyOnSuccess(t *testing.T) {
 		return nil
 	}
 
-	wrapped := Wrap1E("ConditionalSuccess", successFunc)
+	wrapped := Wrap1E(registry, "ConditionalSuccess", successFunc)
 	_ = wrapped(10)
 
 	if !afterReturningCalled {
@@ -381,47 +388,48 @@ func TestIntegration_AfterReturningOnlyOnSuccess(t *testing.T) {
 		return errors.New("error")
 	}
 
-	wrapped2 := Wrap1E("ConditionalSuccess", errorFunc)
+	wrapped2 := Wrap1E(registry, "ConditionalSuccess", errorFunc)
 	_ = wrapped2(10)
 
 	if afterReturningCalled {
 		t.Error("AfterReturning should NOT be called on error")
 	}
 
-	Clear()
+	registry.Clear()
 }
 
 func TestIntegration_MetadataPassingBetweenAdvice(t *testing.T) {
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
-	_ = Register("MetadataTest")
+	_ = registry.Register("MetadataTest")
 
 	// Before: set metadata
-	_ = AddAdvice("MetadataTest", Advice{
+	_ = registry.AddAdvice("MetadataTest", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			ctx.Metadata["userId"] = "user_123"
-			ctx.Metadata["requestId"] = "req_456"
+		Handler: func(c *Context) error {
+			c.Metadata["userId"] = "user_123"
+			c.Metadata["requestId"] = "req_456"
 			return nil
 		},
 	})
 
 	// After: read metadata
 	var userId, requestId string
-	_ = AddAdvice("MetadataTest", Advice{
+	_ = registry.AddAdvice("MetadataTest", Advice{
 		Type:     After,
 		Priority: 100,
-		Handler: func(ctx *Context) error {
-			userId = ctx.Metadata["userId"].(string)
-			requestId = ctx.Metadata["requestId"].(string)
+		Handler: func(c *Context) error {
+			userId = c.Metadata["userId"].(string)
+			requestId = c.Metadata["requestId"].(string)
 			return nil
 		},
 	})
 
 	targetFunc := func() {}
 
-	wrapped := Wrap0("MetadataTest", targetFunc)
+	wrapped := Wrap0(registry, "MetadataTest", targetFunc)
 	wrapped()
 
 	if userId != "user_123" {
@@ -431,5 +439,5 @@ func TestIntegration_MetadataPassingBetweenAdvice(t *testing.T) {
 		t.Errorf("expected req_456, got %s", requestId)
 	}
 
-	Clear()
+	registry.Clear()
 }

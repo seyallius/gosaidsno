@@ -31,7 +31,7 @@ func TestRegistry_Register(t *testing.T) {
 	}
 }
 
-func TestRegistry_RegisterOrGet(t *testing.T) {
+func TestRegistry_TestRegistry_RegisterOrGet(t *testing.T) {
 	registry := NewRegistry()
 
 	// First call should register
@@ -77,7 +77,7 @@ func TestRegistry_AddAdvice(t *testing.T) {
 	err := registry.AddAdvice("NonExistent", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler:  func(ctx *Context) error { return nil },
+		Handler:  func(c *Context) error { return nil },
 	})
 	if err == nil {
 		t.Fatal("expected error for non-existent function")
@@ -88,7 +88,7 @@ func TestRegistry_AddAdvice(t *testing.T) {
 	err = registry.AddAdvice("TestFunc", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler:  func(ctx *Context) error { return nil },
+		Handler:  func(c *Context) error { return nil },
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -98,7 +98,7 @@ func TestRegistry_AddAdvice(t *testing.T) {
 	err = registry.AddAdvice("", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler:  func(ctx *Context) error { return nil },
+		Handler:  func(c *Context) error { return nil },
 	})
 	if err == nil {
 		t.Fatal("expected error for empty function name")
@@ -240,12 +240,12 @@ func TestRegistry_GetAdviceCount(t *testing.T) {
 	_ = registry.AddAdvice("TestFunc", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler:  func(ctx *Context) error { return nil },
+		Handler:  func(c *Context) error { return nil },
 	})
 	_ = registry.AddAdvice("TestFunc", Advice{
 		Type:     After,
 		Priority: 100,
-		Handler:  func(ctx *Context) error { return nil },
+		Handler:  func(c *Context) error { return nil },
 	})
 
 	count = registry.GetAdviceCount("TestFunc")
@@ -286,41 +286,42 @@ func TestRegistry_ConcurrentAccess(t *testing.T) {
 
 func TestGlobalRegistry_Functions(t *testing.T) {
 	// Clear global registry before test
-	Clear()
+	registry := NewRegistry()
+	registry.Clear()
 
 	// Test global Register
-	err := Register("GlobalFunc")
+	err := registry.Register("GlobalFunc")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Test global IsRegistered
-	if !IsRegistered("GlobalFunc") {
+	if !registry.IsRegistered("GlobalFunc") {
 		t.Fatal("function should be registered in global registry")
 	}
 
 	// Test global RegisterOrGet
-	chain1 := RegisterOrGet("GlobalFunc2")
+	chain1 := registry.RegisterOrGet("GlobalFunc2")
 	if chain1 == nil {
 		t.Fatal("expected non-nil chain")
 	}
-	chain2 := RegisterOrGet("GlobalFunc2")
+	chain2 := registry.RegisterOrGet("GlobalFunc2")
 	if chain1 != chain2 {
 		t.Fatal("expected same chain from RegisterOrGet")
 	}
 
 	// Test global AddAdvice
-	err = AddAdvice("GlobalFunc", Advice{
+	err = registry.AddAdvice("GlobalFunc", Advice{
 		Type:     Before,
 		Priority: 100,
-		Handler:  func(ctx *Context) error { return nil },
+		Handler:  func(c *Context) error { return nil },
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Test global GetAdviceChain
-	chain, err := GetAdviceChain("GlobalFunc")
+	chain, err := registry.GetAdviceChain("GlobalFunc")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -329,44 +330,27 @@ func TestGlobalRegistry_Functions(t *testing.T) {
 	}
 
 	// Test global Count
-	if Count() < 2 {
-		t.Fatalf("expected at least 2, got %d", Count())
+	if registry.Count() < 2 {
+		t.Fatalf("expected at least 2, got %d", registry.Count())
 	}
 
 	// Test global GetAdviceCount
-	if GetAdviceCount("GlobalFunc") != 1 {
-		t.Fatalf("expected 1 advice, got %d", GetAdviceCount("GlobalFunc"))
+	if registry.GetAdviceCount("GlobalFunc") != 1 {
+		t.Fatalf("expected 1 advice, got %d", registry.GetAdviceCount("GlobalFunc"))
 	}
 
 	// Test global ListRegistered
-	names := ListRegistered()
+	names := registry.ListRegistered()
 	if len(names) < 2 {
 		t.Fatalf("expected at least 2 names, got %d: %v", len(names), names)
 	}
 
 	// Test global Unregister
-	Unregister("GlobalFunc")
-	if IsRegistered("GlobalFunc") {
+	registry.Unregister("GlobalFunc")
+	if registry.IsRegistered("GlobalFunc") {
 		t.Fatal("function should be unregistered")
 	}
 
 	// Clean up
-	Clear()
-}
-
-func TestSetGlobalRegistry(t *testing.T) {
-	// Save original
-	original := GetGlobalRegistry()
-
-	// Create and set new registry
-	newRegistry := NewRegistry()
-	SetGlobalRegistry(newRegistry)
-
-	// Verify it's the new one
-	if GetGlobalRegistry() != newRegistry {
-		t.Fatal("global registry was not set correctly")
-	}
-
-	// Restore original
-	SetGlobalRegistry(original)
+	registry.Clear()
 }

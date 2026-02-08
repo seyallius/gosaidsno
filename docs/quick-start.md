@@ -35,8 +35,8 @@ func main() {
     err = aspect.AddAdvice("GreetUser", aspect.Advice{
         Type:     aspect.Before,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
-            log.Printf("About to execute %s", ctx.FunctionName)
+        Handler: func(c *aspect.Context) error {
+            log.Printf("About to execute %s", c.FunctionName)
             return nil
         },
     })
@@ -48,8 +48,8 @@ func main() {
     err = aspect.AddAdvice("GreetUser", aspect.Advice{
         Type:     aspect.After,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
-            log.Printf("Finished executing %s", ctx.FunctionName)
+        Handler: func(c *aspect.Context) error {
+            log.Printf("Finished executing %s", c.FunctionName)
             return nil
         },
     })
@@ -144,15 +144,15 @@ func main() {
     aspect.MustAddAdvice("CalculateSquareRoot", aspect.Advice{
         Type:     aspect.Around,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
+        Handler: func(c *aspect.Context) error {
             startTime := time.Now()
-            log.Printf("[%s] Starting execution", ctx.FunctionName)
+            log.Printf("[%s] Starting execution", c.FunctionName)
 
             // Continue with function execution
-            err := ctx.Next() // This would be the function call in a real implementation
+            err := c.Next() // This would be the function call in a real implementation
 
             duration := time.Since(startTime)
-            log.Printf("[%s] Completed in %v", ctx.FunctionName, duration)
+            log.Printf("[%s] Completed in %v", c.FunctionName, duration)
 
             return err
         },
@@ -162,8 +162,8 @@ func main() {
     aspect.MustAddAdvice("CalculateSquareRoot", aspect.Advice{
         Type:     aspect.AfterThrowing,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
-            log.Printf("[%s] Function panicked with: %v", ctx.FunctionName, ctx.PanicValue)
+        Handler: func(c *aspect.Context) error {
+            log.Printf("[%s] Function panicked with: %v", c.FunctionName, c.PanicValue)
             return nil
         },
     })

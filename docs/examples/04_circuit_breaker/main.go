@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/seyallius/gosaidsno/aspect"
-	"github.com/seyallius/gosaidsno/examples/utils"
+	"github.com/seyallius/gosaidsno/docs/examples/utils"
 )
 
 // -------------------------------------------- Circuit Breaker --------------------------------------------
@@ -38,17 +38,19 @@ var externalServiceCircuit = NewCircuitBreaker(3, 5*time.Second)
 
 // -------------------------------------------- Setup --------------------------------------------
 
+var registry = aspect.NewRegistry()
+
 func setupAOP() {
 	log.Println("=== Setting up Circuit Breaker AOP ===")
 
-	aspect.MustRegister("CallExternalService")
+	registry.MustRegister("CallExternalService")
 
 	// Around advice: circuit breaker
-	aspect.MustAddAdvice("CallExternalService", aspect.Advice{
+	registry.MustAddAdvice("CallExternalService", aspect.Advice{
 		Type:     aspect.Around,
 		Priority: 100,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAround(ctx, 100, "CIRCUIT BREAKER")
+		Handler: func(c *aspect.Context) error {
+			utils.LogAround(c, 100, "CIRCUIT BREAKER")
 
 			// Check circuit state
 			externalServiceCircuit.mu.Lock()
@@ -74,10 +76,10 @@ func setupAOP() {
 
 				log.Printf("   🚫 [CIRCUIT] Rejecting call - circuit OPEN")
 				log.Printf("   ⏳ [CIRCUIT] Retry available in: %v", remaining.Round(time.Second))
-				ctx.SetResult(0, "")
-				ctx.Error = fmt.Errorf("circuit breaker OPEN, retry in %v", remaining.Round(time.Second))
-				ctx.Skipped = true
-				utils.LogAround(ctx, 100, "END (circuit open, execution blocked)")
+				c.SetResult(0, "")
+				c.Error = fmt.Errorf("circuit breaker OPEN, retry in %v", remaining.Round(time.Second))
+				c.Skipped = true
+				utils.LogAround(c, 100, "END (circuit open, execution blocked)")
 				return nil
 			}
 
@@ -88,24 +90,24 @@ func setupAOP() {
 			}
 
 			log.Printf("   ▶️  [CIRCUIT] Proceeding with function execution")
-			utils.LogAround(ctx, 100, "END (allowing execution)")
+			utils.LogAround(c, 100, "END (allowing execution)")
 			return nil // Allow execution
 		},
 	})
 
 	// After advice: track failures
-	aspect.MustAddAdvice("CallExternalService", aspect.Advice{
+	registry.MustAddAdvice("CallExternalService", aspect.Advice{
 		Type:     aspect.After,
 		Priority: 100,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogAfter(ctx, 100, "CIRCUIT METRICS")
+		Handler: func(c *aspect.Context) error {
+			utils.LogAfter(c, 100, "CIRCUIT METRICS")
 
-			if ctx.Skipped {
+			if c.Skipped {
 				log.Printf("   ⏭️  [CIRCUIT] Execution was skipped (circuit open)")
 				return nil
 			}
 
-			if ctx.Error != nil {
+			if c.Error != nil {
 				externalServiceCircuit.mu.Lock()
 				externalServiceCircuit.failures++
 				currentFailures := externalServiceCircuit.failures
@@ -145,12 +147,12 @@ func setupAOP() {
 	})
 
 	// Before advice for logging
-	aspect.MustAddAdvice("CallExternalService", aspect.Advice{
+	registry.MustAddAdvice("CallExternalService", aspect.Advice{
 		Type:     aspect.Before,
 		Priority: 90,
-		Handler: func(ctx *aspect.Context) error {
-			utils.LogBefore(ctx, 90, "REQUEST LOG")
-			endpoint := ctx.Args[0].(string)
+		Handler: func(c *aspect.Context) error {
+			utils.LogBefore(c, 90, "REQUEST LOG")
+			endpoint := c.Args[0].(string)
 			log.Printf("   🌐 [REQUEST] Calling external service: %s", endpoint)
 			return nil
 		},
@@ -184,7 +186,7 @@ func callExternalServiceImpl(endpoint string) (string, error) {
 
 // -------------------------------------------- Wrapped Functions --------------------------------------------
 
-var CallExternalService = aspect.Wrap1RE("CallExternalService", callExternalServiceImpl)
+var CallExternalService = aspect.Wrap1RE(registry, "CallExternalService", callExternalServiceImpl)
 
 // -------------------------------------------- Examples --------------------------------------------
 

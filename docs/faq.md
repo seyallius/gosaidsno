@@ -63,7 +63,7 @@ wrappedGetUser := aspect.Wrap1RE[int, User]("UserService.GetUser", getUserFunc)
 
 ### Q: Can advice functions modify function arguments or return values?
 
-**A:** Yes, advice functions can modify the context, which allows them to modify arguments (through ctx.Args) and return values (through ctx.SetResult()). Around advice can also skip the target function entirely by setting ctx.Skipped = true.
+**A:** Yes, advice functions can modify the context, which allows them to modify arguments (through c.Args) and return values (through c.SetResult()). Around advice can also skip the target function entirely by setting c.Skipped = true.
 
 ## Technical
 

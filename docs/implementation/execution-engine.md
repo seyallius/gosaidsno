@@ -10,56 +10,56 @@ func executeWithAdvice(functionName string, targetFn func(*Context), args ...any
     chain, err := GetAdviceChain(functionName)
     if err != nil {
         // No advice registered, just execute target function
-        ctx := NewContext(functionName, args...)
-        targetFn(ctx)
-        return ctx
+        c := NewContext(functionName, args...)
+        targetFn(c)
+        return c
     }
 
     // Create execution context
-    ctx := NewContext(functionName, args...)
+    c := NewContext(functionName, args...)
 
     // Defer After advice (always runs)
     defer func() {
-        _ = chain.ExecuteAfter(ctx)
+        _ = chain.ExecuteAfter(c)
     }()
 
     // Defer panic recovery and AfterThrowing advice
     defer func() {
         if r := recover(); r != nil {
-            ctx.PanicValue = r
-            _ = chain.ExecuteAfterThrowing(ctx)
+            c.PanicValue = r
+            _ = chain.ExecuteAfterThrowing(c)
             panic(r)  // Re-panic to maintain original behavior
         }
     }()
 
     // Execute Before advice
-    if err := chain.ExecuteBefore(ctx); err != nil {
+    if err := chain.ExecuteBefore(c); err != nil {
         panic(fmt.Errorf("before advice failed: %w", err))
     }
 
     // Execute Around advice (if any)
     if chain.HasAround() {
-        if err := chain.ExecuteAround(ctx); err != nil {
+        if err := chain.ExecuteAround(c); err != nil {
             panic(fmt.Errorf("around advice failed: %w", err))
         }
         // If Around advice sets Skipped, don't execute target function
-        if ctx.Skipped {
-            if ctx.Error == nil && !ctx.HasPanic() {
-                _ = chain.ExecuteAfterReturning(ctx)
+        if c.Skipped {
+            if c.Error == nil && !c.HasPanic() {
+                _ = chain.ExecuteAfterReturning(c)
             }
-            return ctx
+            return c
         }
     }
 
     // Execute target function
-    targetFn(ctx)
+    targetFn(c)
 
     // Execute AfterReturning advice (only if no error and no panic)
-    if ctx.Error == nil && !ctx.HasPanic() {
-        _ = chain.ExecuteAfterReturning(ctx)
+    if c.Error == nil && !c.HasPanic() {
+        _ = chain.ExecuteAfterReturning(c)
     }
 
-    return ctx
+    return c
 }
 ```
 
@@ -80,7 +80,7 @@ func executeWithAdvice(functionName string, targetFn func(*Context), args ...any
 
 ### 4. Around Decision
 - Execute Around advice in priority order
-- Check if execution should be skipped based on `ctx.Skipped`
+- Check if execution should be skipped based on `c.Skipped`
 - If skipped, may execute AfterReturning and return early
 
 ### 5. Target Execution

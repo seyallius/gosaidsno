@@ -20,7 +20,7 @@ type AdviceType int
 
 // AdviceFunc is the signature for advice functions.
 // It receives the execution context and can modify it.
-type AdviceFunc func(ctx *Context) error
+type AdviceFunc func(c *Context) error
 
 // Advice represents a single piece of advice attached to a function.
 type Advice struct {
@@ -68,28 +68,28 @@ func (ac *AdviceChain) Add(advice Advice) {
 }
 
 // ExecuteBefore runs all Before advice in order of priority.
-func (ac *AdviceChain) ExecuteBefore(ctx *Context) error {
-	return ac.executeAdviceList(ac.before, ctx)
+func (ac *AdviceChain) ExecuteBefore(c *Context) error {
+	return ac.executeAdviceList(ac.before, c)
 }
 
 // ExecuteAfter runs all After advice in order of priority.
-func (ac *AdviceChain) ExecuteAfter(ctx *Context) error {
-	return ac.executeAdviceList(ac.after, ctx)
+func (ac *AdviceChain) ExecuteAfter(c *Context) error {
+	return ac.executeAdviceList(ac.after, c)
 }
 
 // ExecuteAround runs all Around advice in order of priority.
-func (ac *AdviceChain) ExecuteAround(ctx *Context) error {
-	return ac.executeAdviceList(ac.around, ctx)
+func (ac *AdviceChain) ExecuteAround(c *Context) error {
+	return ac.executeAdviceList(ac.around, c)
 }
 
 // ExecuteAfterReturning runs all AfterReturning advice in order of priority.
-func (ac *AdviceChain) ExecuteAfterReturning(ctx *Context) error {
-	return ac.executeAdviceList(ac.afterReturning, ctx)
+func (ac *AdviceChain) ExecuteAfterReturning(c *Context) error {
+	return ac.executeAdviceList(ac.afterReturning, c)
 }
 
 // ExecuteAfterThrowing runs all AfterThrowing advice in order of priority.
-func (ac *AdviceChain) ExecuteAfterThrowing(ctx *Context) error {
-	return ac.executeAdviceList(ac.afterThrowing, ctx)
+func (ac *AdviceChain) ExecuteAfterThrowing(c *Context) error {
+	return ac.executeAdviceList(ac.afterThrowing, c)
 }
 
 // HasAround returns true if the chain has Around advice.
@@ -105,7 +105,7 @@ func (ac *AdviceChain) Count() int {
 // -------------------------------------------- Private Helper Functions --------------------------------------------
 
 // executeAdviceList runs a list of advice in priority order.
-func (ac *AdviceChain) executeAdviceList(adviceList []Advice, ctx *Context) error {
+func (ac *AdviceChain) executeAdviceList(adviceList []Advice, c *Context) error {
 	if len(adviceList) == 0 {
 		return nil
 	}
@@ -120,7 +120,7 @@ func (ac *AdviceChain) executeAdviceList(adviceList []Advice, ctx *Context) erro
 
 	// Execute in order
 	for _, advice := range sortedAdviceList {
-		if err := advice.Handler(ctx); err != nil {
+		if err := advice.Handler(c); err != nil {
 			return err
 		}
 	}

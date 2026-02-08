@@ -10,10 +10,10 @@ func Wrap1RE[A, R any](name string, fn func(A) (R, error)) func(A) (R, error) {
         var result R
         var err error
         
-        executeWithAdvice(name, func(ctx *Context) {
+        executeWithAdvice(name, func(c *Context) {
             result, err = fn(a)           // Execute target function
-            ctx.SetResult(0, result)      // Store result in context
-            ctx.Error = err               // Store error in context
+            c.SetResult(0, result)      // Store result in context
+            c.Error = err               // Store error in context
         }, a)
         
         return result, err
@@ -82,7 +82,7 @@ Different wrapper types handle different function signatures:
 ```go
 func Wrap1[A any](name string, fn func(A)) func(A) {
     return func(a A) {
-        executeWithAdvice(name, func(ctx *Context) {
+        executeWithAdvice(name, func(c *Context) {
             fn(a)
         }, a)
     }
@@ -94,14 +94,14 @@ func Wrap1[A any](name string, fn func(A)) func(A) {
 func Wrap1R[A, R any](name string, fn func(A) R) func(A) R {
     return func(a A) R {
         var result R
-        ctx := executeWithAdvice(name, func(ctx *Context) {
+        c := executeWithAdvice(name, func(c *Context) {
             result = fn(a)
-            ctx.SetResult(0, result)
+            c.SetResult(0, result)
         }, a)
         
         // Handle result from Around advice if target was skipped
-        if ctx != nil && ctx.Skipped && len(ctx.Results) > 0 && ctx.Results[0] != nil {
-            if res, ok := ctx.Results[0].(R); ok {
+        if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+            if res, ok := c.Results[0].(R); ok {
                 result = res
             }
         }
@@ -117,10 +117,10 @@ func Wrap1RE[A, R any](name string, fn func(A) (R, error)) func(A) (R, error) {
     return func(a A) (R, error) {
         var result R
         var err error
-        executeWithAdvice(name, func(ctx *Context) {
+        executeWithAdvice(name, func(c *Context) {
             result, err = fn(a)
-            ctx.SetResult(0, result)
-            ctx.Error = err
+            c.SetResult(0, result)
+            c.Error = err
         }, a)
         return result, err
     }

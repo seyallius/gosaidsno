@@ -13,9 +13,9 @@ While gosaidsno provides 5 core advice types, you can conceptually extend the sy
 func ConditionalAdvice(condition func(*aspect.Context) bool, advice aspect.Advice) aspect.Advice {
     return aspect.Advice{
         Type: advice.Type,
-        Handler: func(ctx *aspect.Context) error {
-            if condition(ctx) {
-                return advice.Handler(ctx)
+        Handler: func(c *aspect.Context) error {
+            if condition(c) {
+                return advice.Handler(c)
             }
             return nil
         },
@@ -25,8 +25,8 @@ func ConditionalAdvice(condition func(*aspect.Context) bool, advice aspect.Advic
 
 // Usage
 aspect.AddAdvice("MyFunc", ConditionalAdvice(
-    func(ctx *aspect.Context) bool {
-        return ctx.Args[0].(string) == "special"
+    func(c *aspect.Context) bool {
+        return c.Args[0].(string) == "special"
     },
     aspect.Advice{
         Type: aspect.Before,
@@ -73,15 +73,15 @@ While you can't directly modify the core Context, you can create utility functio
 ```go
 // Enhanced context utilities
 type ContextHelper struct {
-    ctx *aspect.Context
+    c *aspect.Context
 }
 
-func NewContextHelper(ctx *aspect.Context) *ContextHelper {
-    return &ContextHelper{ctx: ctx}
+func NewContextHelper(c *aspect.Context) *ContextHelper {
+    return &ContextHelper{c: c}
 }
 
 func (ch *ContextHelper) GetString(key string) (string, bool) {
-    if val, exists := ch.ctx.Metadata[key]; exists {
+    if val, exists := ch.c.Metadata[key]; exists {
         if str, ok := val.(string); ok {
             return str, true
         }
@@ -90,12 +90,12 @@ func (ch *ContextHelper) GetString(key string) (string, bool) {
 }
 
 func (ch *ContextHelper) SetTyped(key string, value interface{}) {
-    ch.ctx.Metadata[key] = value
+    ch.c.Metadata[key] = value
 }
 
 // Usage in advice
-func myAdvice(ctx *aspect.Context) error {
-    helper := NewContextHelper(ctx)
+func myAdvice(c *aspect.Context) error {
+    helper := NewContextHelper(c)
     userID, exists := helper.GetString("user_id")
     if !exists {
         return errors.New("user_id not found")
@@ -114,14 +114,14 @@ For unsupported function signatures, create custom wrappers:
 func WrapVariadic(name string, fn func(...interface{}) interface{}) func(...interface{}) interface{} {
     return func(args ...interface{}) interface{} {
         var result interface{}
-        ctx := executeWithAdvice(name, func(ctx *aspect.Context) {
+        c := executeWithAdvice(name, func(c *aspect.Context) {
             result = fn(args...)
-            ctx.SetResult(0, result)
+            c.SetResult(0, result)
         }, args...)
         
         // Handle result from Around advice if target was skipped
-        if ctx.Skipped && len(ctx.Results) > 0 {
-            result = ctx.Results[0]
+        if c.Skipped && len(c.Results) > 0 {
+            result = c.Results[0]
         }
         
         return result
@@ -167,10 +167,10 @@ type Decorator func(aspect.AdviceFunc) aspect.AdviceFunc
 // Retry decorator
 func WithRetry(maxRetries int) Decorator {
     return func(next aspect.AdviceFunc) aspect.AdviceFunc {
-        return func(ctx *aspect.Context) error {
+        return func(c *aspect.Context) error {
             var lastErr error
             for i := 0; i <= maxRetries; i++ {
-                if err := next(ctx); err != nil {
+                if err := next(c); err != nil {
                     lastErr = err
                     if i < maxRetries {
                         time.Sleep(time.Duration(i+1) * time.Second)

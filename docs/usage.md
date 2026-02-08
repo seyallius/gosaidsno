@@ -32,8 +32,8 @@ Executes before the target function. Useful for logging, validation, authenticat
 aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
     Type:     aspect.Before,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        log.Printf("About to call %s", ctx.FunctionName)
+    Handler: func(c *aspect.Context) error {
+        log.Printf("About to call %s", c.FunctionName)
         return nil
     },
 })
@@ -47,8 +47,8 @@ Executes after the target function, regardless of whether it succeeded or panick
 aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
     Type:     aspect.After,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        log.Printf("Finished calling %s", ctx.FunctionName)
+    Handler: func(c *aspect.Context) error {
+        log.Printf("Finished calling %s", c.FunctionName)
         return nil
     },
 })
@@ -62,12 +62,12 @@ Wraps the target function execution. Can skip the target function entirely or mo
 aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
     Type:     aspect.Around,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        log.Printf("Around advice: About to call %s", ctx.FunctionName)
+    Handler: func(c *aspect.Context) error {
+        log.Printf("Around advice: About to call %s", c.FunctionName)
 
         // The target function executes here
 
-        log.Printf("Around advice: Finished calling %s", ctx.FunctionName)
+        log.Printf("Around advice: Finished calling %s", c.FunctionName)
         return nil
     },
 })
@@ -81,9 +81,9 @@ Executes only if the target function returns successfully (no panic). Useful for
 aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
     Type:     aspect.AfterReturning,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        if ctx.Error == nil {
-            log.Printf("Function %s succeeded", ctx.FunctionName)
+    Handler: func(c *aspect.Context) error {
+        if c.Error == nil {
+            log.Printf("Function %s succeeded", c.FunctionName)
         }
         return nil
     },
@@ -98,9 +98,9 @@ Executes only if the target function panics. Useful for error handling, cleanup 
 aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
     Type:     aspect.AfterThrowing,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        if ctx.PanicValue != nil {
-            log.Printf("Function %s panicked: %v", ctx.FunctionName, ctx.PanicValue)
+    Handler: func(c *aspect.Context) error {
+        if c.PanicValue != nil {
+            log.Printf("Function %s panicked: %v", c.FunctionName, c.PanicValue)
         }
         return nil
     },
@@ -246,13 +246,13 @@ Advice functions can communicate with each other using the context's metadata fi
 aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
     Type:     aspect.Before,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        token := ctx.Args[0].(string) // Assuming first arg is token
+    Handler: func(c *aspect.Context) error {
+        token := c.Args[0].(string) // Assuming first arg is token
         user, err := authenticate(token)
         if err != nil {
             return err
         }
-        ctx.Metadata["authenticatedUser"] = user
+        c.Metadata["authenticatedUser"] = user
         return nil
     },
 })
@@ -261,8 +261,8 @@ aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
 aspect.MustAddAdvice("UserService.GetUser", aspect.Advice{
     Type:     aspect.Before,
     Priority: 90, // Lower priority, runs after auth
-    Handler: func(ctx *aspect.Context) error {
-        user := ctx.Metadata["authenticatedUser"].(*User)
+    Handler: func(c *aspect.Context) error {
+        user := c.Metadata["authenticatedUser"].(*User)
         if user.Role != "admin" {
             return errors.New("insufficient permissions")
         }
@@ -281,13 +281,13 @@ var cache = make(map[string]interface{})
 aspect.MustAddAdvice("ExpensiveCalculation", aspect.Advice{
     Type:     aspect.Around,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        key := fmt.Sprintf("%v", ctx.Args[0]) // Simple key from first arg
+    Handler: func(c *aspect.Context) error {
+        key := fmt.Sprintf("%v", c.Args[0]) // Simple key from first arg
 
         if cached, exists := cache[key]; exists {
             // Found in cache, skip target function
-            ctx.SetResult(0, cached)
-            ctx.Skipped = true
+            c.SetResult(0, cached)
+            c.Skipped = true
             return nil
         }
 
@@ -300,11 +300,11 @@ aspect.MustAddAdvice("ExpensiveCalculation", aspect.Advice{
 aspect.MustAddAdvice("ExpensiveCalculation", aspect.Advice{
     Type:     aspect.AfterReturning,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        if !ctx.Skipped {
+    Handler: func(c *aspect.Context) error {
+        if !c.Skipped {
             // Cache the result only if function wasn't skipped
-            key := fmt.Sprintf("%v", ctx.Args[0])
-            cache[key] = ctx.Results[0]
+            key := fmt.Sprintf("%v", c.Args[0])
+            cache[key] = c.Results[0]
         }
         return nil
     },
@@ -319,9 +319,9 @@ Combine multiple advice types for robust error handling:
 aspect.MustAddAdvice("ExternalAPICall", aspect.Advice{
     Type:     aspect.Before,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
+    Handler: func(c *aspect.Context) error {
         // Initialize retry counter
-        ctx.Metadata["retryCount"] = 0
+        c.Metadata["retryCount"] = 0
         return nil
     },
 })
@@ -329,11 +329,11 @@ aspect.MustAddAdvice("ExternalAPICall", aspect.Advice{
 aspect.MustAddAdvice("ExternalAPICall", aspect.Advice{
     Type:     aspect.AfterReturning,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
-        if ctx.Error != nil {
-            retryCount := ctx.Metadata["retryCount"].(int)
+    Handler: func(c *aspect.Context) error {
+        if c.Error != nil {
+            retryCount := c.Metadata["retryCount"].(int)
             if retryCount < 3 {
-                ctx.Metadata["retryCount"] = retryCount + 1
+                c.Metadata["retryCount"] = retryCount + 1
                 // In a real implementation, you'd trigger a retry here
             }
         }
@@ -380,7 +380,7 @@ Always handle errors in your advice functions appropriately:
 aspect.MustAddAdvice("MyFunc", aspect.Advice{
     Type:     aspect.Before,
     Priority: 100,
-    Handler: func(ctx *aspect.Context) error {
+    Handler: func(c *aspect.Context) error {
         // Always return an error if something goes wrong
         if someCondition {
             return errors.New("validation failed")
@@ -410,8 +410,8 @@ func TestLoggingAdvice(t *testing.T) {
     aspect.MustAddAdvice("TestFunc", aspect.Advice{
         Type:     aspect.Before,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
-            logOutput = fmt.Sprintf("Called %s", ctx.FunctionName)
+        Handler: func(c *aspect.Context) error {
+            logOutput = fmt.Sprintf("Called %s", c.FunctionName)
             return nil
         },
     })
@@ -435,15 +435,15 @@ func loggingAdvice() aspect.Advice {
     return aspect.Advice{
         Type:     aspect.Around,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
+        Handler: func(c *aspect.Context) error {
             start := time.Now()
-            log.Printf("Starting %s with args: %v", ctx.FunctionName, ctx.Args)
+            log.Printf("Starting %s with args: %v", c.FunctionName, c.Args)
 
             // Function executes here
 
             duration := time.Since(start)
             log.Printf("Completed %s in %v, result: %v, error: %v",
-                      ctx.FunctionName, duration, ctx.Results, ctx.Error)
+                      c.FunctionName, duration, c.Results, c.Error)
             return nil
         },
     }
@@ -457,13 +457,13 @@ func authAdvice() aspect.Advice {
     return aspect.Advice{
         Type:     aspect.Before,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
-            token := extractToken(ctx.Args)
+        Handler: func(c *aspect.Context) error {
+            token := extractToken(c.Args)
             user, err := validateToken(token)
             if err != nil {
                 return errors.New("unauthorized")
             }
-            ctx.Metadata["user"] = user
+            c.Metadata["user"] = user
             return nil
         },
     }
@@ -477,8 +477,8 @@ func rateLimitingAdvice() aspect.Advice {
     return aspect.Advice{
         Type:     aspect.Before,
         Priority: 100,
-        Handler: func(ctx *aspect.Context) error {
-            user := ctx.Metadata["user"].(*User)
+        Handler: func(c *aspect.Context) error {
+            user := c.Metadata["user"].(*User)
             if !rateLimiter.Allow(user.ID) {
                 return errors.New("rate limit exceeded")
             }
