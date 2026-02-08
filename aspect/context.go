@@ -11,7 +11,7 @@ import (
 // Context holds the execution state for a single function invocation.
 // It captures arguments, return values, errors, and panic information.
 type Context struct {
-	FunctionName string         // FunctionName is the registered name of the wrapped function.
+	FunctionName FuncKey        // FunctionName is the registered name of the wrapped function.
 	Args         []any          // Args contains the function arguments (caller must cast to correct types).
 	Results      []any          // Results contains the function return values (populated after execution).
 	Error        error          // Error holds any error returned by the function.
@@ -22,7 +22,7 @@ type Context struct {
 }
 
 // NewContext creates a new execution context for the given function.
-func NewContext(functionName string, args ...any) *Context {
+func NewContext(functionName FuncKey, args ...any) *Context {
 	return &Context{
 		FunctionName: functionName,
 		Args:         args,

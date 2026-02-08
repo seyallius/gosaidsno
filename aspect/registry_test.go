@@ -184,7 +184,7 @@ func TestRegistry_ListRegistered(t *testing.T) {
 	}
 
 	// Check all names are present
-	nameMap := make(map[string]bool)
+	nameMap := make(map[FuncKey]bool)
 	for _, name := range names {
 		nameMap[name] = true
 	}
@@ -265,7 +265,7 @@ func TestRegistry_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			_ = registry.Register(fmt.Sprintf("Func%d", n))
+			_ = registry.Register(FuncKey(fmt.Sprintf("Func%d", n)))
 		}(i)
 	}
 

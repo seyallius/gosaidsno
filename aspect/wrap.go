@@ -6,19 +6,19 @@ import "fmt"
 // -------------------------------------------- Public Functions --------------------------------------------
 
 // Wrap0 wraps a function with no arguments and no return values.
-func Wrap0(registry *Registry, name string, fn func()) func() {
+func Wrap0(registry *Registry, funcKey FuncKey, fn func()) func() {
 	return func() {
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			fn()
 		})
 	}
 }
 
 // Wrap0R wraps a function with no arguments and one return value.
-func Wrap0R[R any](registry *Registry, name string, fn func() R) func() R {
+func Wrap0R[R any](registry *Registry, funcKey FuncKey, fn func() R) func() R {
 	return func() R {
 		var result R
-		c := executeWithAdvice(registry, name, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result = fn()
 			c.SetResult(0, result)
 		})
@@ -33,11 +33,11 @@ func Wrap0R[R any](registry *Registry, name string, fn func() R) func() R {
 }
 
 // Wrap0RE wraps a function with no arguments and returns (result, error).
-func Wrap0RE[R any](registry *Registry, name string, fn func() (R, error)) func() (R, error) {
+func Wrap0RE[R any](registry *Registry, funcKey FuncKey, fn func() (R, error)) func() (R, error) {
 	return func() (R, error) {
 		var result R
 		var err error
-		c := executeWithAdvice(registry, name, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result, err = fn()
 			c.SetResult(0, result)
 			c.Error = err
@@ -56,19 +56,19 @@ func Wrap0RE[R any](registry *Registry, name string, fn func() (R, error)) func(
 }
 
 // Wrap1 wraps a function with one argument and no return values.
-func Wrap1[A any](registry *Registry, name string, fn func(A)) func(A) {
+func Wrap1[A any](registry *Registry, funcKey FuncKey, fn func(A)) func(A) {
 	return func(a A) {
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			fn(a)
 		}, a)
 	}
 }
 
 // Wrap1R wraps a function with one argument and one return value.
-func Wrap1R[A, R any](registry *Registry, name string, fn func(A) R) func(A) R {
+func Wrap1R[A, R any](registry *Registry, funcKey FuncKey, fn func(A) R) func(A) R {
 	return func(a A) R {
 		var result R
-		c := executeWithAdvice(registry, name, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result = fn(a)
 			c.SetResult(0, result)
 		}, a)
@@ -86,11 +86,11 @@ func Wrap1R[A, R any](registry *Registry, name string, fn func(A) R) func(A) R {
 }
 
 // Wrap1RE wraps a function with one argument and returns (result, error).
-func Wrap1RE[A, R any](registry *Registry, name string, fn func(A) (R, error)) func(A) (R, error) {
+func Wrap1RE[A, R any](registry *Registry, funcKey FuncKey, fn func(A) (R, error)) func(A) (R, error) {
 	return func(a A) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			result, err = fn(a)
 			c.SetResult(0, result)
 			c.Error = err
@@ -100,10 +100,10 @@ func Wrap1RE[A, R any](registry *Registry, name string, fn func(A) (R, error)) f
 }
 
 // Wrap1E wraps a function with one argument and returns error.
-func Wrap1E[A any](registry *Registry, name string, fn func(A) error) func(A) error {
+func Wrap1E[A any](registry *Registry, funcKey FuncKey, fn func(A) error) func(A) error {
 	return func(a A) error {
 		var err error
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			err = fn(a)
 			c.Error = err
 		}, a)
@@ -112,19 +112,19 @@ func Wrap1E[A any](registry *Registry, name string, fn func(A) error) func(A) er
 }
 
 // Wrap2 wraps a function with two arguments and no return values.
-func Wrap2[A, B any](registry *Registry, name string, fn func(A, B)) func(A, B) {
+func Wrap2[A, B any](registry *Registry, funcKey FuncKey, fn func(A, B)) func(A, B) {
 	return func(a A, b B) {
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			fn(a, b)
 		}, a, b)
 	}
 }
 
 // Wrap2R wraps a function with two arguments and one return value.
-func Wrap2R[A, B, R any](registry *Registry, name string, fn func(A, B) R) func(A, B) R {
+func Wrap2R[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) R) func(A, B) R {
 	return func(a A, b B) R {
 		var result R
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			result = fn(a, b)
 			c.SetResult(0, result)
 		}, a, b)
@@ -133,11 +133,11 @@ func Wrap2R[A, B, R any](registry *Registry, name string, fn func(A, B) R) func(
 }
 
 // Wrap2RE wraps a function with two arguments and returns (result, error).
-func Wrap2RE[A, B, R any](registry *Registry, name string, fn func(A, B) (R, error)) func(A, B) (R, error) {
+func Wrap2RE[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) (R, error)) func(A, B) (R, error) {
 	return func(a A, b B) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			result, err = fn(a, b)
 			c.SetResult(0, result)
 			c.Error = err
@@ -147,10 +147,10 @@ func Wrap2RE[A, B, R any](registry *Registry, name string, fn func(A, B) (R, err
 }
 
 // Wrap2E wraps a function with two arguments and returns error.
-func Wrap2E[A, B any](registry *Registry, name string, fn func(A, B) error) func(A, B) error {
+func Wrap2E[A, B any](registry *Registry, funcKey FuncKey, fn func(A, B) error) func(A, B) error {
 	return func(a A, b B) error {
 		var err error
-		executeWithAdvice(registry, name, func(c *Context) {
+		executeWithAdvice(registry, funcKey, func(c *Context) {
 			err = fn(a, b)
 			c.Error = err
 		}, a, b)
@@ -159,19 +159,19 @@ func Wrap2E[A, B any](registry *Registry, name string, fn func(A, B) error) func
 }
 
 // Wrap3 wraps a function with three arguments and no return values.
-func Wrap3[A, B, C any](registry *Registry, name string, fn func(A, B, C)) func(A, B, C) {
+func Wrap3[A, B, C any](registry *Registry, funcKey FuncKey, fn func(A, B, C)) func(A, B, C) {
 	return func(a A, b B, c C) {
-		executeWithAdvice(registry, name, func(ct *Context) {
+		executeWithAdvice(registry, funcKey, func(ct *Context) {
 			fn(a, b, c)
 		}, a, b, c)
 	}
 }
 
 // Wrap3R wraps a function with three arguments and one return value.
-func Wrap3R[A, B, C, R any](registry *Registry, name string, fn func(A, B, C) R) func(A, B, C) R {
+func Wrap3R[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, C) R) func(A, B, C) R {
 	return func(a A, b B, c C) R {
 		var result R
-		executeWithAdvice(registry, name, func(ct *Context) {
+		executeWithAdvice(registry, funcKey, func(ct *Context) {
 			result = fn(a, b, c)
 			ct.SetResult(0, result)
 		}, a, b, c)
@@ -180,11 +180,11 @@ func Wrap3R[A, B, C, R any](registry *Registry, name string, fn func(A, B, C) R)
 }
 
 // Wrap3RE wraps a function with three arguments and returns (result, error).
-func Wrap3RE[A, B, C, R any](registry *Registry, name string, fn func(A, B, C) (R, error)) func(A, B, C) (R, error) {
+func Wrap3RE[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, C) (R, error)) func(A, B, C) (R, error) {
 	return func(a A, b B, c C) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, name, func(ct *Context) {
+		executeWithAdvice(registry, funcKey, func(ct *Context) {
 			result, err = fn(a, b, c)
 			ct.SetResult(0, result)
 			ct.Error = err
@@ -194,10 +194,10 @@ func Wrap3RE[A, B, C, R any](registry *Registry, name string, fn func(A, B, C) (
 }
 
 // Wrap3E wraps a function with three arguments and returns error.
-func Wrap3E[A, B, C any](registry *Registry, name string, fn func(A, B, C) error) func(A, B, C) error {
+func Wrap3E[A, B, C any](registry *Registry, funcKey FuncKey, fn func(A, B, C) error) func(A, B, C) error {
 	return func(a A, b B, c C) error {
 		var err error
-		executeWithAdvice(registry, name, func(ct *Context) {
+		executeWithAdvice(registry, funcKey, func(ct *Context) {
 			err = fn(a, b, c)
 			ct.Error = err
 		}, a, b, c)
@@ -208,7 +208,7 @@ func Wrap3E[A, B, C any](registry *Registry, name string, fn func(A, B, C) error
 // -------------------------------------------- Private Helper Functions --------------------------------------------
 
 // executeWithAdvice executes a function with full advice chain support and returns the context.
-func executeWithAdvice(registry *Registry, functionName string, targetFn func(*Context), args ...any) *Context {
+func executeWithAdvice(registry *Registry, functionName FuncKey, targetFn func(*Context), args ...any) *Context {
 	// Get advice chain from registry
 	chain, err := registry.GetAdviceChain(functionName)
 	if err != nil {
