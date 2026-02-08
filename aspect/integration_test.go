@@ -443,39 +443,3 @@ func TestIntegration_MetadataPassingBetweenAdvice(t *testing.T) {
 
 	registry.Clear()
 }
-
-func TestConcurrentExecution(t *testing.T) {
-	reg := NewRegistry()
-
-	_ = reg.Register("fn")
-	if err := reg.AddAdvice("fn", Advice{
-		Type: Before,
-		Handler: func(c *Context) error {
-			return nil
-		},
-	}); err != nil {
-		t.Fatalf("failed to add advice: %v", err)
-	}
-
-	fn := func(a int) int {
-		return a * 2
-	}
-
-	wrapped := Wrap1R(reg, "fn", fn)
-
-	const workers = 8
-	const iterations = 10_000
-	done := make(chan struct{})
-	for i := 0; i < workers; i++ {
-		go func() {
-			for j := 0; j < iterations; j++ {
-				_ = wrapped(j)
-			}
-			done <- struct{}{}
-		}()
-	}
-
-	for i := 0; i < workers; i++ {
-		<-done
-	}
-}

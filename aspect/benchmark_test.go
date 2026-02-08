@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// Reverting commit containing pooling context object logic due to not providing much performance
+// optimizations. Could be due to my bad implementation?
+//
 // Benchmark Results:
 //
 // with pool
@@ -481,18 +484,18 @@ func Benchmark_MetadataHeavy(b *testing.B) {
 // Benchmark_PoolEffectiveness isolates the pool effect
 func Benchmark_PoolEffectiveness(b *testing.B) {
 	// Test with and without pool
-	b.Run("WithPool", func(b *testing.B) {
-		// Enable pooling
-		enableContextPooling = true
-		defer func() { enableContextPooling = false }()
-
-		benchmarkPoolScenario(b)
-	})
+	//b.Run("WithPool", func(b *testing.B) {
+	//	// Enable pooling
+	//enableContextPooling = true
+	//defer func() { enableContextPooling = false }()
+	//
+	//benchmarkPoolScenario(b)
+	//})
 
 	b.Run("WithoutPool", func(b *testing.B) {
 		// Disable pooling
-		enableContextPooling = false
-		defer func() { enableContextPooling = true }()
+		//enableContextPooling = false
+		//defer func() { enableContextPooling = true }()
 
 		benchmarkPoolScenario(b)
 	})
