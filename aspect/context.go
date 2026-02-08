@@ -79,3 +79,16 @@ func (c *Context) GetMetadataVal(key string) (any, bool) {
 	val, exists := c.Metadata[key]
 	return val, exists
 }
+
+// Reset resets the Context values for pool reuse.
+func (c *Context) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.Args = nil
+	c.Results = c.Results[:0] // Clear but keep capacity
+	c.Error = nil
+	c.PanicValue = nil
+	c.Skipped = false
+	clear(c.Metadata)
+}

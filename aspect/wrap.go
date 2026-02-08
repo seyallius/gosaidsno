@@ -3,6 +3,8 @@ package aspect
 
 import "fmt"
 
+// -------------------------------------------- Types --------------------------------------------
+
 // -------------------------------------------- Public Functions --------------------------------------------
 
 // Wrap0 wraps a function with no arguments and no return values.
@@ -90,11 +92,20 @@ func Wrap1RE[A, R any](registry *Registry, funcKey FuncKey, fn func(A) (R, error
 	return func(a A) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, funcKey, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result, err = fn(a)
 			c.SetResult(0, result)
 			c.Error = err
 		}, a)
+		// Use result and error from context if available
+		if c != nil {
+			if len(c.Results) > 0 && c.Results[0] != nil {
+				result = c.Results[0].(R)
+			}
+			if c.Error != nil {
+				err = c.Error
+			}
+		}
 		return result, err
 	}
 }
@@ -124,10 +135,17 @@ func Wrap2[A, B any](registry *Registry, funcKey FuncKey, fn func(A, B)) func(A,
 func Wrap2R[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) R) func(A, B) R {
 	return func(a A, b B) R {
 		var result R
-		executeWithAdvice(registry, funcKey, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result = fn(a, b)
 			c.SetResult(0, result)
 		}, a, b)
+		// If Around advice set a result and skipped execution, use that result
+		if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := c.Results[0].(R); ok {
+				result = res
+			}
+		}
 		return result
 	}
 }
@@ -137,11 +155,20 @@ func Wrap2RE[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) (R,
 	return func(a A, b B) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, funcKey, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			result, err = fn(a, b)
 			c.SetResult(0, result)
 			c.Error = err
 		}, a, b)
+		// Use result and error from context if available
+		if c != nil {
+			if len(c.Results) > 0 && c.Results[0] != nil {
+				result = c.Results[0].(R)
+			}
+			if c.Error != nil {
+				err = c.Error
+			}
+		}
 		return result, err
 	}
 }
@@ -150,10 +177,14 @@ func Wrap2RE[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) (R,
 func Wrap2E[A, B any](registry *Registry, funcKey FuncKey, fn func(A, B) error) func(A, B) error {
 	return func(a A, b B) error {
 		var err error
-		executeWithAdvice(registry, funcKey, func(c *Context) {
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
 			err = fn(a, b)
 			c.Error = err
 		}, a, b)
+		// Use error from context if available
+		if c != nil && c.Error != nil {
+			err = c.Error
+		}
 		return err
 	}
 }
@@ -171,10 +202,17 @@ func Wrap3[A, B, C any](registry *Registry, funcKey FuncKey, fn func(A, B, C)) f
 func Wrap3R[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, C) R) func(A, B, C) R {
 	return func(a A, b B, c C) R {
 		var result R
-		executeWithAdvice(registry, funcKey, func(ct *Context) {
+		ctx := executeWithAdvice(registry, funcKey, func(ct *Context) {
 			result = fn(a, b, c)
 			ct.SetResult(0, result)
 		}, a, b, c)
+		// If Around advice set a result and skipped execution, use that result
+		if ctx != nil && ctx.Skipped && len(ctx.Results) > 0 && ctx.Results[0] != nil {
+			// Safe type assertion with proper handling
+			if res, ok := ctx.Results[0].(R); ok {
+				result = res
+			}
+		}
 		return result
 	}
 }
@@ -184,11 +222,20 @@ func Wrap3RE[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, 
 	return func(a A, b B, c C) (R, error) {
 		var result R
 		var err error
-		executeWithAdvice(registry, funcKey, func(ct *Context) {
+		ctx := executeWithAdvice(registry, funcKey, func(ct *Context) {
 			result, err = fn(a, b, c)
 			ct.SetResult(0, result)
 			ct.Error = err
 		}, a, b, c)
+		// Use result and error from context if available
+		if ctx != nil {
+			if len(ctx.Results) > 0 && ctx.Results[0] != nil {
+				result = ctx.Results[0].(R)
+			}
+			if ctx.Error != nil {
+				err = ctx.Error
+			}
+		}
 		return result, err
 	}
 }
@@ -197,10 +244,14 @@ func Wrap3RE[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, 
 func Wrap3E[A, B, C any](registry *Registry, funcKey FuncKey, fn func(A, B, C) error) func(A, B, C) error {
 	return func(a A, b B, c C) error {
 		var err error
-		executeWithAdvice(registry, funcKey, func(ct *Context) {
+		ctx := executeWithAdvice(registry, funcKey, func(ct *Context) {
 			err = fn(a, b, c)
 			ct.Error = err
 		}, a, b, c)
+		// Use error from context if available
+		if ctx != nil && ctx.Error != nil {
+			err = ctx.Error
+		}
 		return err
 	}
 }
@@ -213,13 +264,41 @@ func executeWithAdvice(registry *Registry, functionName FuncKey, targetFn func(*
 	chain, err := registry.GetAdviceChain(functionName)
 	if err != nil {
 		// No advice registered, just execute target function
-		c := NewContext(functionName, args...)
-		targetFn(c)
-		return c
+		var c *Context
+		if enableContextPooling {
+			c = acquireContext(functionName, args...)
+			// Execute target function
+			targetFn(c)
+
+			// Release context before returning
+			releaseContext(c)
+
+			// Return a fresh context with the results copied
+			newCtx := NewContext(functionName, args...)
+			newCtx.Results = make([]any, len(c.Results))
+			copy(newCtx.Results, c.Results)
+			newCtx.Error = c.Error
+			newCtx.PanicValue = c.PanicValue
+			newCtx.Skipped = c.Skipped
+			for k, v := range c.Metadata {
+				newCtx.Metadata[k] = v
+			}
+
+			return newCtx
+		} else {
+			c = NewContext(functionName, args...)
+			targetFn(c)
+			return c
+		}
 	}
 
 	// Create execution context
-	c := NewContext(functionName, args...)
+	var c *Context
+	if enableContextPooling {
+		c = acquireContext(functionName, args...)
+	} else {
+		c = NewContext(functionName, args...)
+	}
 
 	// Defer After advice (always runs)
 	defer func() {
@@ -238,7 +317,7 @@ func executeWithAdvice(registry *Registry, functionName FuncKey, targetFn func(*
 	}()
 
 	// Execute Before advice
-	if err := chain.ExecuteBefore(c); err != nil {
+	if err = chain.ExecuteBefore(c); err != nil {
 		panic(fmt.Errorf("before advice failed: %w", err))
 	}
 
@@ -253,6 +332,23 @@ func executeWithAdvice(registry *Registry, functionName FuncKey, targetFn func(*
 			if c.Error == nil && !c.HasPanic() {
 				_ = chain.ExecuteAfterReturning(c)
 			}
+			if enableContextPooling {
+				// Return a fresh context with the results copied
+				newCtx := NewContext(functionName, args...)
+				newCtx.Results = make([]any, len(c.Results))
+				copy(newCtx.Results, c.Results)
+				newCtx.Error = c.Error
+				newCtx.PanicValue = c.PanicValue
+				newCtx.Skipped = c.Skipped
+				for k, v := range c.Metadata {
+					newCtx.Metadata[k] = v
+				}
+
+				// Release the pooled context
+				releaseContext(c)
+
+				return newCtx
+			}
 			return c
 		}
 	}
@@ -263,6 +359,24 @@ func executeWithAdvice(registry *Registry, functionName FuncKey, targetFn func(*
 	// Execute AfterReturning advice (only if no error and no panic)
 	if c.Error == nil && !c.HasPanic() {
 		_ = chain.ExecuteAfterReturning(c)
+	}
+
+	if enableContextPooling {
+		// Return a fresh context with the results copied
+		newCtx := NewContext(functionName, args...)
+		newCtx.Results = make([]any, len(c.Results))
+		copy(newCtx.Results, c.Results)
+		newCtx.Error = c.Error
+		newCtx.PanicValue = c.PanicValue
+		newCtx.Skipped = c.Skipped
+		for k, v := range c.Metadata {
+			newCtx.Metadata[k] = v
+		}
+
+		// Release the pooled context
+		releaseContext(c)
+
+		return newCtx
 	}
 
 	return c
