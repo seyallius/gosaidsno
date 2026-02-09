@@ -23,3 +23,9 @@ gosaidno2.png
 LICENSE
 CONTRIBUTING.md
 Makefile
+# Jekyll
+_site/
+.jekyll-cache/
+.jekyll-metadata
+vendor/
+.bundle/

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Home
+nav_order: 1
+---
+
 # _gosaidsno_
 
 Welcome to the comprehensive documentation for _gosaidsno_, an Aspect-Oriented Programming (AOP) library for Go.

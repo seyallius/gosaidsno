@@ -31,3 +31,10 @@ go.work.sum
 ***.idea/
 ***.vscode/
 treeclip_temp*
+
+# Jekyll
+_site/
+.jekyll-cache/
+.jekyll-metadata
+vendor/
+.bundle/

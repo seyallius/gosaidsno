@@ -1,3 +1,13 @@
+---
+layout: default
+title: Architecture
+parent: Implementation
+nav_order: 1
+---
+
+1. Table of Contents
+{:toc}
+
 # Architecture Overview
 
 gosaidsno's architecture consists of interconnected components that work together to provide AOP functionality:

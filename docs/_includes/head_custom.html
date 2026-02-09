@@ -1,0 +1,40 @@
+<style>
+    /* Only apply this style on large screens (wider than 1400px) */
+    @media (min-width: 1400px) {
+        /* Identify the Table of Contents list */
+        #markdown-toc {
+            position: fixed;
+            right: 0;
+            top: 6rem;       /* Distance from top */
+            width: 15rem;    /* Width of the sidebar */
+            padding-right: 1rem;
+            max-height: 80vh;
+            overflow-y: auto;
+            list-style: none;
+            font-size: 0.85rem;
+            border-left: 1px solid #444; /* A nice border separator */
+            padding-left: 15px;
+            z-index: 10;
+        }
+        
+        /* Style the links inside the TOC */
+        #markdown-toc li {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        
+        #markdown-toc a {
+            color: #888; /* Grey text by default */
+            text-decoration: none;
+        }
+        
+        #markdown-toc a:hover {
+            color: #2b80fa; /* Blue on hover */
+        }
+        
+        /* Hide the text "Table of Contents" if you added a header for it */
+        .text-delta {
+            display: none;
+        }
+    }
+</style>

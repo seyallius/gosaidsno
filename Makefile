@@ -110,12 +110,21 @@ ex-context: ## Run example: Context Propagation (context cancellation, deadlines
 .PHONY: ex-all
 ex-all: ex-basic ex-cache ex-auth ex-circuit-br ex-retry ex-fluent-api ex-real ex-context ## Run all examples.
 
-##@ Docs (Docksify)
+##@ Docs (Jekyll)
 
-.PHONY: serve
-serve: ## Serve documentations locally (docksify must be installed - refer to documentation)
-	docsify serve ./docs
+.PHONY: docs-deps
+docs-deps: ## deps
+	cd docs && \
+	bundle config set --local path 'vendor/bundle' && \
+	bundle install
 
+.PHONY: docs-build
+docs-build: ## Build static files from markdown.
+	cd docs && bundle exec jekyll build
+
+.PHONY: docs-serve
+docs-serve: ## docs serve
+	cd docs && bundle exec jekyll serve --livereload
 
 ##@ Git
 

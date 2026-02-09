@@ -1,3 +1,9 @@
+---
+layout: default
+title: FAQ
+nav_order: 6
+---
+
 # Frequently Asked Questions (FAQ)
 
 Find answers to common questions about gosaidsno.

@@ -1,3 +1,14 @@
+---
+layout: default
+title: Implementation
+nav_order: 5
+has_children: true
+permalink: /implementation
+---
+
+1. Table of Contents
+{:toc}
+
 # Implementation Details
 
 This section provides a deep dive into how gosaidsno is implemented internally. Understanding these details can help you use the library more effectively and make informed decisions about when and how to use it.

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Quick Start
+nav_order: 2
+---
+
 # Quick Start Guide
 
 This guide will help you get started with gosaidsno in just a few minutes. You'll learn how to set up AOP in your Go application and implement common cross-cutting concerns.
