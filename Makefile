@@ -102,8 +102,13 @@ ex-real: ## Run example: Real World Example (all cross-cutting concerns)
 	@echo "Running real world example..."
 	go run docs/examples/07_real_world_example/*.go
 
+.PHONY: ex-context
+ex-context: ## Run example: Context Propagation (context cancellation, deadlines, values)
+	@echo "Running context propagation example..."
+	go run docs/examples/08_context_example/main.go
+
 .PHONY: ex-all
-ex-all: ex-basic ex-cache ex-auth ex-circuit-br ex-retry ex-fluent-api ex-real ## Run all examples.
+ex-all: ex-basic ex-cache ex-auth ex-circuit-br ex-retry ex-fluent-api ex-real ex-context ## Run all examples.
 
 ##@ Docs (Docksify)
 
