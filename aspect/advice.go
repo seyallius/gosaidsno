@@ -23,6 +23,7 @@ type AdviceType int
 
 // AdviceFunc is the signature for advice functions.
 // It receives the execution context and can modify it.
+// The context.Context inside the Context struct can be used for cancellation and deadlines.
 type AdviceFunc func(c *Context) error
 
 // Advice represents a single piece of advice attached to a function.
@@ -157,6 +158,14 @@ func (ac *AdviceChain) executeAdviceList(adviceList []Advice, c *Context) error 
 
 	// Execute in order
 	for _, advice := range sortedAdviceList {
+		// Check if context is cancelled before executing advice
+		select {
+		case <-c.Context().Done():
+			return c.Context().Err()
+		default:
+			// Context not cancelled, continue execution
+		}
+
 		if err := advice.Handler(c); err != nil {
 			return err
 		}
