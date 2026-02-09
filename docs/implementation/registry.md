@@ -7,8 +7,13 @@ The registry is the central hub that maintains associations between function nam
 ```go
 type Registry struct {
     mu      sync.RWMutex      // Thread safety for concurrent access
-    entries map[string]*AdviceChain  // Function name → AdviceChain mapping
+    entries map[FuncKey]*AdviceChain  // Function name → AdviceChain mapping
 }
+
+var (
+    // defaultRegistry is the global default registry used by the fluent API
+    defaultRegistry = NewRegistry()
+)
 ```
 
 ## Design Decisions
@@ -16,11 +21,48 @@ type Registry struct {
 ### Thread Safety
 The registry uses `sync.RWMutex` because we expect more read operations (function calls) than write operations (registrations). This allows multiple goroutines to access different advice chains concurrently while preventing race conditions during registration.
 
-### Global Singleton
-A default global registry is provided for convenience, but the system supports multiple registries for different use cases.
+### Global Default Registry
+A default global registry is provided via `DefaultRegistry()` function for convenience. This is used by the fluent API to provide a seamless experience without requiring explicit registry management.
 
-### String Keys
-Human-readable function names are used as keys, making debugging and logging more intuitive.
+### Multiple Registry Support
+The system supports multiple registries for different use cases:
+- Default registry for general use
+- Custom registries for specific modules or testing
+- Isolated registries for different application contexts
+
+### FuncKey Type
+Instead of raw strings, the registry now uses `FuncKey` type alias for better type safety and to avoid key typos:
+
+```go
+type FuncKey string
+```
+
+## Default Registry Functions
+
+### DefaultRegistry()
+Returns the global default registry instance, used by the fluent API:
+
+```go
+func DefaultRegistry() *Registry {
+    return defaultRegistry
+}
+```
+
+This allows the fluent API to work without requiring explicit registry management:
+
+```go
+aspect.For("MyFunction").  // Uses default registry internally
+    WithBefore(myAdvice)
+```
+
+## Thread Safety Considerations
+
+The registry is designed to be thread-safe for concurrent access:
+- Read operations (during function calls) use read locks
+- Write operations (registration, advice addition) use write locks
+- Individual advice chains are protected by their own mutexes
+- Registration and advice addition should happen during initialization, not during hot paths
+- Human-readable function names are used as keys, making debugging and logging more intuitive.
 
 ## Implementation Details
 
@@ -66,11 +108,11 @@ Example:
 ```go
 // Use local registries for:
 // - Testing isolation
-// - Microservices with different AOP requirements
+// - Microservices with different AOP requirements  
 // - Dynamic function registration scenarios
 
 localRegistry := aspect.NewRegistry()
-localRegistry.Register("MyFunc", myFunc)
+localRegistry.Register("MyFunc")
 ```
 
 ## Performance Characteristics

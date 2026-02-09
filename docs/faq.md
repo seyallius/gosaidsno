@@ -141,6 +141,58 @@ wrappedGetUser := aspect.Wrap1RE[int, User]("UserService.GetUser", getUserFunc)
 
 **A:** Add logging to your advice functions to trace execution flow. You can also inspect the context object to see what data is available at each step.
 
+## Fluent API
+
+### Q: What is the fluent API?
+
+**A:** The fluent API provides a declarative, method-chaining interface for configuring advice. Instead of manually registering functions and adding advice separately, you can use method chaining:
+
+```go
+aspect.For("GetUser").
+    WithBefore(authCheck).
+    WithAfter(logging).
+    WithAround(caching)
+```
+
+### Q: How does the fluent API work with function wrapping?
+
+**A:** After configuring advice with the fluent API, you still need to wrap your functions using the registry from the builder:
+
+```go
+aspect.For("GetUser").
+    WithBefore(authCheck).
+    WithAfter(logging)
+
+builder := aspect.For("GetUser")
+wrappedFn := aspect.Wrap1RE[string,*User](builder.GetRegistry(), builder.GetFuncKey(), getUserImpl)
+```
+
+### Q: What are the benefits of the fluent API?
+
+**A:** The fluent API offers several benefits:
+- **Readability**: Method chaining makes configuration more readable
+- **Convenience**: Groups related advice configuration together
+- **Type Safety**: Still maintains full type safety without reflection
+- **Consistency**: Provides a consistent way to configure multiple advice types
+
+### Q: Can I use both the traditional API and the fluent API?
+
+**A:** Yes, both APIs work with the same underlying registry system. You can use either approach or mix them as needed in your application.
+
+### Q: Does the fluent API use reflection?
+
+**A:** No, the fluent API does not use reflection. It uses the same underlying registry and advice chain system as the traditional API, maintaining the same performance characteristics and type safety.
+
+### Q: How do I use the fluent API with custom registries?
+
+**A:** You can use the fluent API with custom registries using `ForWithRegistry`:
+
+```go
+registry := aspect.NewRegistry()
+aspect.ForWithRegistry(registry, "MyFunction").
+    WithBefore(myAdvice)
+```
+
 ## Development
 
 ### Q: How can I contribute to gosaidsno?

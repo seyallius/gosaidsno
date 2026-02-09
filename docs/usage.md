@@ -488,4 +488,165 @@ func rateLimitingAdvice() aspect.Advice {
 }
 ```
 
+## Fluent API
+
+gosaidsno now includes a fluent/declarative API that provides a more convenient and readable way to configure advice:
+
+### Basic Usage
+
+Instead of manually registering functions and adding advice separately, you can use the fluent API:
+
+```go
+// Old way
+aspect.MustRegister("GetUser")
+aspect.MustAddAdvice("GetUser", aspect.Advice{
+    Type:     aspect.Before,
+    Handler:  authCheck,
+})
+aspect.MustAddAdvice("GetUser", aspect.Advice{
+    Type:     aspect.After,
+    Handler:  logging,
+})
+
+// New fluent way
+aspect.For("GetUser").
+    WithBefore(authCheck).
+    WithAfter(logging)
+```
+
+### Fluent API Methods
+
+The fluent API provides methods for all advice types:
+
+- `WithBefore(handler)` - Add Before advice
+- `WithAfter(handler)` - Add After advice  
+- `WithAround(handler)` - Add Around advice
+- `WithAfterReturning(handler)` - Add AfterReturning advice
+- `WithAfterThrowing(handler)` - Add AfterThrowing advice
+
+Each method also has a priority variant:
+
+- `WithBeforeP(handler, priority)` - Add Before advice with priority
+- `WithAfterP(handler, priority)` - Add After advice with priority
+- `WithAroundP(handler, priority)` - Add Around advice with priority
+- `WithAfterReturningP(handler, priority)` - Add AfterReturning advice with priority
+- `WithAfterThrowingP(handler, priority)` - Add AfterThrowing advice with priority
+
+### Using Custom Registries
+
+You can also use the fluent API with custom registries:
+
+```go
+registry := aspect.NewRegistry()
+aspect.ForWithRegistry(registry, "GetUser").
+    WithBefore(authCheck).
+    WithAfter(logging)
+```
+
+### Combining with Function Wrapping
+
+After configuring advice with the fluent API, wrap your functions using the registry:
+
+```go
+// Configure advice
+aspect.For("GetUser").
+    WithBefore(authCheck).
+    WithAfter(logging).
+    WithAround(caching)
+
+// Then wrap your function using the builder
+builder := aspect.For("GetUser")
+wrappedFn := aspect.Wrap1RE[string,*User](builder.GetRegistry(), builder.GetFuncKey(), getUserImpl)
+```
+
+### Complete Example
+
+Here's a complete example using the fluent API:
+
+```go
+package main
+
+import (
+    "github.com/seyallius/gosaidsno/aspect"
+)
+
+func main() {
+    // Configure advice using fluent API
+    aspect.For("GetUser").
+        WithBefore(func(c *aspect.Context) error {
+            // Authentication check
+            return nil
+        }).
+        WithAfter(func(c *aspect.Context) error {
+            // Logging
+            return nil
+        }).
+        WithAround(func(c *aspect.Context) error {
+            // Caching logic
+            return nil
+        })
+
+    // Wrap your function
+    builder := aspect.For("GetUser")
+    wrappedGetUser := aspect.Wrap1RE[string,*User](
+        builder.GetRegistry(), 
+        builder.GetFuncKey(), 
+        getUserImpl,
+    )
+
+    // Use the wrapped function normally
+    user, err := wrappedGetUser("user123")
+}
+
+func getUserImpl(id string) (*User, error) {
+    // Your business logic here
+    return &User{ID: id}, nil
+}
+
+type User struct {
+    ID string
+}
+```
+
+## Best Practices with Fluent API
+
+### 1. Group Related Configuration
+
+Use the fluent API to group related advice configuration:
+
+```go
+// Configure all security-related advice together
+aspect.For("SensitiveOperation").
+    WithBefore(authentication).
+    WithBefore(authorization).
+    WithAfter(auditLog)
+```
+
+### 2. Use Priority Variants for Ordering
+
+When you need specific execution order, use the priority variants:
+
+```go
+aspect.For("CriticalOperation").
+    WithBeforeP(highPriorityValidation, 100).
+    WithBeforeP(normalValidation, 50).
+    WithBeforeP(lowPriorityValidation, 10)
+```
+
+### 3. Combine with Centralized Setup
+
+Integrate the fluent API into your centralized setup:
+
+```go
+func setupSecurity() {
+    aspect.For("UserService.GetUser").
+        WithBefore(authentication).
+        WithBefore(authorization)
+    
+    aspect.For("PaymentService.Process").
+        WithBefore(fraudDetection).
+        WithAfter(paymentAudit)
+}
+```
+
 This guide covers the essential aspects of using gosaidsno. For more specific examples, check out the [Examples](../examples/README.md) directory.

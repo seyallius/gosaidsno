@@ -6,6 +6,14 @@ import (
 	"sync"
 )
 
+// -------------------------------------------- Global Variables --------------------------------------------
+
+var (
+	// defaultRegistry is the global default registry used by the fluent API
+	defaultRegistry *Registry
+	defaultRegOnce  sync.Once
+)
+
 // -------------------------------------------- Types --------------------------------------------
 
 // Registry stores function references and their associated advice chains.
@@ -19,6 +27,14 @@ func NewRegistry() *Registry {
 	return &Registry{
 		entries: make(map[FuncKey]*AdviceChain),
 	}
+}
+
+// DefaultRegistry returns the global default registry.
+func DefaultRegistry() *Registry {
+	defaultRegOnce.Do(func() {
+		defaultRegistry = NewRegistry()
+	})
+	return defaultRegistry
 }
 
 // -------------------------------------------- Public Functions --------------------------------------------

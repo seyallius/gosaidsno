@@ -92,8 +92,18 @@ ex-retry: ## Run example: Retry Pattern (Before, After)
 	@echo "Running retry pattern example..."
 	go run docs/examples/05_retry_pattern/main.go
 
+.PHONY: ex-fluent-api
+ex-fluent-api: ## Run example: Fluent API (Before, After)
+	@echo "Running fluent-api example..."
+	go run docs/examples/06_fluent_api/main.go
+
+.PHONY: ex-real
+ex-real: ## Run example: Real World Example (all cross-cutting concerns)
+	@echo "Running real world example..."
+	go run docs/examples/07_real_world_example/*.go
+
 .PHONY: ex-all
-ex-all: ex-basic ex-cache ex-auth ex-circuit-br ex-retry ## Run all examples.
+ex-all: ex-basic ex-cache ex-auth ex-circuit-br ex-retry ex-fluent-api ex-real ## Run all examples.
 
 ##@ Docs (Docksify)
 

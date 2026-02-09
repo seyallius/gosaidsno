@@ -195,6 +195,58 @@ func main() {
 4. **Be mindful of performance**: Each piece of advice adds overhead to function calls
 5. **Use metadata for communication**: Use the context's metadata field to share data between advice
 
+## Fluent API Alternative
+
+gosaidsno also provides a fluent API that offers a more convenient way to configure advice:
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/seyallius/gosaidsno/aspect"
+)
+
+func main() {
+    // Use the fluent API to configure advice
+    aspect.For("GreetUser").
+        WithBefore(func(c *aspect.Context) error {
+            log.Printf("About to execute %s", c.FunctionName)
+            return nil
+        }).
+        WithAfter(func(c *aspect.Context) error {
+            log.Printf("Finished executing %s", c.FunctionName)
+            return nil
+        })
+
+    // Wrap your function using the builder
+    builder := aspect.For("GreetUser")
+    greetUser := aspect.Wrap1R[string](
+        builder.GetRegistry(),
+        builder.GetFuncKey(),
+        func(name string) string {
+            return fmt.Sprintf("Hello, %s!", name)
+        })
+
+    // Use your enhanced function
+    result := greetUser("World")
+    fmt.Println(result)
+}
+```
+
+The fluent API provides a more readable and concise way to configure multiple advice types for a function.
+
+## Real-World Application Structure
+
+For a complete real-world example showing proper project structure and multiple cross-cutting concerns, see the [real-world example](../examples/07_real_world_example/README.md). This example demonstrates:
+
+- Service layer separation with business logic
+- Centralized AOP setup using the fluent API
+- Multiple organization approaches (globals vs structs)
+- Complete cross-cutting concerns (logging, timing, validation, caching, error handling)
+
 ## Next Steps
 
 Now that you've seen the basics, explore the [Usage Guide](./usage.md) for more advanced features and patterns, or check out the [Examples](../examples/README.md) for real-world use cases.

@@ -5,21 +5,106 @@ Wrapper functions serve as the bridge between your code and the AOP system. They
 ## Wrapper Structure
 
 ```go
-func Wrap1RE[A, R any](name string, fn func(A) (R, error)) func(A) (R, error) {
+func Wrap1RE[A, R any](registry *Registry, funcKey FuncKey, fn func(A) (R, error)) func(A) (R, error) {
     return func(a A) (R, error) {
         var result R
         var err error
-        
-        executeWithAdvice(name, func(c *Context) {
+
+        c := executeWithAdvice(registry, funcKey, func(c *Context) {
             result, err = fn(a)           // Execute target function
             c.SetResult(0, result)      // Store result in context
             c.Error = err               // Store error in context
         }, a)
-        
+
+        // If Around advice set a result and skipped execution, use that result
+        if c != nil && c.Skipped && len(c.Results) > 0 && c.Results[0] != nil {
+            if res, ok := c.Results[0].(R); ok {
+                result = res
+            }
+        }
+        if c != nil && c.Error != nil {
+            err = c.Error
+        }
+
         return result, err
     }
 }
 ```
+
+## Available Wrapper Functions
+
+gosaidsno provides wrapper functions for various function signatures:
+
+### No Arguments
+- `Wrap0(registry *Registry, funcKey FuncKey, fn func()) func()` - No args, no returns
+- `Wrap0R[R any](registry *Registry, funcKey FuncKey, fn func() R) func() R` - No args, one return
+- `Wrap0RE[R any](registry *Registry, funcKey FuncKey, fn func() (R, error)) func() (R, error)` - No args, result + error
+- `Wrap0E(registry *Registry, funcKey FuncKey, fn func() error) func() error` - No args, error only
+
+### One Argument
+- `Wrap1[A any](registry *Registry, funcKey FuncKey, fn func(A)) func(A)` - One arg, no returns
+- `Wrap1R[A, R any](registry *Registry, funcKey FuncKey, fn func(A) R) func(A) R` - One arg, one return
+- `Wrap1RE[A, R any](registry *Registry, funcKey FuncKey, fn func(A) (R, error)) func(A) (R, error)` - One arg, result + error
+- `Wrap1E[A any](registry *Registry, funcKey FuncKey, fn func(A) error) func(A) error` - One arg, error only
+
+### Two Arguments
+- `Wrap2[A, B any](registry *Registry, funcKey FuncKey, fn func(A, B)) func(A, B)` - Two args, no returns
+- `Wrap2R[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) R) func(A, B) R` - Two args, one return
+- `Wrap2RE[A, B, R any](registry *Registry, funcKey FuncKey, fn func(A, B) (R, error)) func(A, B) (R, error)` - Two args, result + error
+- `Wrap2E[A, B any](registry *Registry, funcKey FuncKey, fn func(A, B) error) func(A, B) error` - Two args, error only
+
+### Three Arguments
+- `Wrap3[A, B, C any](registry *Registry, funcKey FuncKey, fn func(A, B, C)) func(A, B, C)` - Three args, no returns
+- `Wrap3R[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, C) R) func(A, B, C) R` - Three args, one return
+- `Wrap3RE[A, B, C, R any](registry *Registry, funcKey FuncKey, fn func(A, B, C) (R, error)) func(A, B, C) (R, error)` - Three args, result + error
+- `Wrap3E[A, B, C any](registry *Registry, funcKey FuncKey, fn func(A, B, C) error) func(A, B, C) error` - Three args, error only
+
+## Integration with Fluent API
+
+The wrapper functions work seamlessly with the fluent API. When using the fluent API, you retrieve the registry and function key from the builder:
+
+```go
+// Configure advice using fluent API
+aspect.For("MyFunction").
+    WithBefore(myBeforeAdvice).
+    WithAfter(myAfterAdvice)
+
+// Then wrap using the builder's registry and function key
+builder := aspect.For("MyFunction")
+wrappedFn := aspect.Wrap1RE[string, *User](
+    builder.GetRegistry(),  // Get registry from builder
+    builder.GetFuncKey(),   // Get function key from builder
+    myOriginalFunction,
+)
+```
+
+This pattern allows you to use the convenience of the fluent API for configuration while maintaining type safety in the wrapping process.
+
+## Wrapper Execution Flow
+
+Each wrapper follows the same pattern:
+
+1. **Setup**: Initialize variables to capture results/errors
+2. **Context Creation**: Create execution context with arguments
+3. **Advice Execution**: Execute all applicable advice through the execution engine
+4. **Target Execution**: Execute the original function (unless skipped by Around advice)
+5. **Result Handling**: Extract results from context if execution was skipped
+6. **Return**: Return results to caller
+
+## Performance Considerations
+
+- **Function Call Overhead**: Each wrapper adds one function call layer
+- **Context Creation**: New context created on each call (memory allocation)
+- **Advice Execution**: Each piece of advice adds execution time
+- **Type Assertion**: When Around advice skips execution, type assertions occur
+
+## Error Propagation
+
+Wrapper functions properly propagate errors from both the target function and advice functions:
+- Errors from target functions are preserved in the context
+- Errors from Before/Around advice cause early termination
+- Errors from After advice are logged but don't affect return values
+- Panic recovery is handled by the execution engine
 
 ## Why This Two-Step Process?
 

@@ -25,5 +25,23 @@ Go doesn't have built-in support for annotations or aspects like Java or other l
 - **Advice Types**: Different types of advice that execute at different points in the function lifecycle
 - **Wrapping**: The mechanism that connects your original function with its advice
 - **Context**: The shared state that allows advice functions to communicate with each other
+- **Fluent API**: Declarative, type-safe configuration using method chaining
+
+## Fluent API
+
+gosaidsno now includes a fluent/declarative API that makes it easy to configure advice:
+
+```go
+// Configure advice using fluent API
+aspect.For("GetUser").
+    WithBefore(authCheck).
+    WithAfter(logging).
+    WithAround(caching)
+
+// Then wrap your function
+builder := aspect.For("GetUser")
+getUserBusinessLogicFn := aspect.Wrap1RE[string,*User](builder.GetRegistry(), builder.GetFuncKey(), GetUserBusinessLogicFn)
+user, err := getUserBusinessLogicFn("userId_1") // `GetUserBusinessLogicFn` will run with AOP support!
+```
 
 Ready to get started? Check out the [Quick Start Guide](./quick-start.md)!

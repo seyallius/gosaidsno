@@ -49,6 +49,24 @@ Implements automatic retries with exponential backoff:
 - Network request retries
 - Exponential backoff calculation
 
+### 6. Fluent API (`examples/06_fluent_api`)
+
+Demonstrates the new fluent/declarative API for configuring advice:
+
+- Declarative advice configuration
+- Method chaining for multiple advice types
+- Type-safe configuration without reflection
+- Cleaner API for aspect setup
+
+### 7. Real-World Example (`examples/07_real_world_example`)
+
+Demonstrates a complete real-world usage with proper project structure:
+
+- Service layer with business logic separation
+- Multiple cross-cutting concerns (logging, timing, validation, caching)
+- Proper organization of wrapped functions
+- Realistic error handling and recovery
+
 ## Running Examples
 
 You can run any example with:
@@ -68,6 +86,12 @@ go run examples/04_circuit_breaker/main.go
 
 # Retry with exponential backoff
 go run examples/05_retry_pattern/main.go
+
+# Fluent API for declarative advice configuration
+go run examples/06_fluent_api/main.go
+
+# Real-world example with proper project structure
+go run examples/07_real_world_example/main.go
 ```
 
 ## Example Structure

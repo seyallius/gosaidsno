@@ -35,6 +35,23 @@ func Wrap0R[R any](registry *Registry, funcKey FuncKey, fn func() R) func() R {
 	}
 }
 
+// Wrap0E wraps a function with no arguments and returns error.
+func Wrap0E(registry *Registry, funcKey FuncKey, fn func() error) func() error {
+	return func() error {
+		var err error
+		c := executeWithAdvice(registry, funcKey, func(c *Context) {
+			err = fn()
+			c.Error = err
+		})
+
+		if c != nil && c.Error != nil {
+			err = c.Error
+		}
+
+		return err
+	}
+}
+
 // Wrap0RE wraps a function with no arguments and returns (result, error).
 func Wrap0RE[R any](registry *Registry, funcKey FuncKey, fn func() (R, error)) func() (R, error) {
 	return func() (R, error) {

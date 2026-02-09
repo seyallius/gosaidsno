@@ -17,6 +17,12 @@ go run examples/04_circuit_breaker/main.go
 
 # Retry with exponential backoff
 go run examples/05_retry_pattern/main.go
+
+# Fluent API for declarative advice configuration
+go run examples/06_fluent_api/main.go
+
+# Real-world example with proper project structure
+go run examples/07_real_world_example/main.go
 ```
 
 ## Examples Overview
@@ -48,37 +54,59 @@ go run examples/05_retry_pattern/main.go
 ### 03_authentication
 **Real-world use cases:**
 - Token validation
+- Permission checks
 - Session management
-- Role-based access control (RBAC)
-- Audit logging
 
 **Key patterns:**
-- Before advice for auth (priority 100)
-- Before advice for authz (priority 90)
-- Store user info in metadata
-- After advice for audit trails
+- Before advice for auth checks
+- Early termination on auth failure
+- Secure parameter access
 
 ### 04_circuit_breaker
 **Real-world use cases:**
-- External API fault tolerance
-- Database connection protection
-- Service degradation handling
+- Fault tolerance for external services
+- Prevent cascading failures
+- Graceful degradation
 
 **Key patterns:**
-- Around advice checks circuit state
-- After advice tracks failures
-- State transitions (CLOSED → OPEN → HALF_OPEN)
+- Around advice controls execution flow
+- State management for circuit breaker
+- Failure counting and timeouts
 
 ### 05_retry_pattern
 **Real-world use cases:**
-- Transient failure handling
-- Network request retries
-- Exponential backoff
+- Network resilience
+- Transient error handling
+- Automatic recovery
 
 **Key patterns:**
-- Before advice initializes retry state
-- After advice implements retry logic
-- Exponential backoff calculation
+- Wrapper functions for retry logic
+- Exponential backoff
+- Conditional retry based on error types
+
+### 06_fluent_api
+**Real-world use cases:**
+- Declarative advice configuration
+- Cleaner API for aspect setup
+- Improved readability and maintainability
+
+**Key patterns:**
+- Fluent builder pattern for advice configuration
+- Method chaining for multiple advice types
+- Type-safe configuration without reflection
+
+### 07_real_world_example
+**Real-world use cases:**
+- Complete application structure with services
+- Multiple cross-cutting concerns (logging, timing, validation, caching)
+- Proper organization of wrapped functions
+- Realistic error handling and recovery
+
+**Key patterns:**
+- Centralized AOP setup
+- Service layer separation
+- Multiple organization approaches (globals vs structs)
+- Realistic validation and error handling
 
 ## Project Setup Pattern
 
@@ -102,7 +130,7 @@ var BusinessLogic = aspect.Wrap*("FunctionName", businessLogicImpl)
 // 4. Use normally throughout application
 func main() {
     setupAOP()  // Once
-    
+
     // Use wrapped functions
     result := BusinessLogic(args...)
 }

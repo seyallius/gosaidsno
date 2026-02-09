@@ -29,6 +29,7 @@ cross-cutting concerns) to them. The library provides a clean, Go-idiomatic way 
 
 ## Quick Example
 
+### Traditional API
 ```go
 // Register your function
 aspect.MustRegister("ProcessPayment")
@@ -45,11 +46,39 @@ aspect.MustAddAdvice("ProcessPayment", aspect.Advice{
 
 // Wrap your function
 ProcessPayment := aspect.Wrap1E[int](
-	"ProcessPayment", 
+	"ProcessPayment",
 	func (paymentID int) error {
         // Your business logic here
         return nil
-    }, 
+    },
+)
+
+// Use as normal
+ProcessPayment(123)
+```
+
+### Fluent API (Recommended Usage!)
+```go
+// Configure advice using fluent API
+aspect.For("ProcessPayment").
+    WithBefore(func(c *aspect.Context) error {
+        log.Printf("Starting %s", c.FunctionName)
+        return nil
+    }).
+    WithAfter(func(c *aspect.Context) error {
+        log.Printf("Completed %s", c.FunctionName)
+        return nil
+    })
+
+// Wrap your function using the builder
+builder := aspect.For("ProcessPayment")
+ProcessPayment := aspect.Wrap1E[int](
+    builder.GetRegistry(),
+    builder.GetFuncKey(),
+    func (paymentID int) error {
+        // Your business logic here
+        return nil
+    },
 )
 
 // Use as normal
@@ -60,3 +89,4 @@ ProcessPayment(123)
 
 Check out our [Quick Start Guide](./docs/quick-start.md) to begin using gosaidsno in your project, or dive deeper into
 the [Usage Documentation](./docs/usage.md) for comprehensive examples and best practices.
+> Note: If the documentation page is not loaded properly due to GitHub pages, you can read them at [here](./docs)
