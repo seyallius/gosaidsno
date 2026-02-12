@@ -263,8 +263,8 @@ func TestAfterThrowing_OnPanic(t *testing.T) {
 	// Catch the re-panic
 	defer func() {
 		r := recover()
-		if r == nil {
-			t.Fatal("expected panic to be re-thrown")
+		if r != nil {
+			t.Fatal("expected panic to not be re-thrown")
 		}
 	}()
 

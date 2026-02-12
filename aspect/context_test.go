@@ -15,6 +15,9 @@ func TestContextCancellation(t *testing.T) {
 
 	var executionOrder []string
 
+	// Create a context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Register function
 	registry.MustRegister("TestContextCancellation")
 
@@ -31,10 +34,11 @@ func TestContextCancellation(t *testing.T) {
 			default:
 				// Context not cancelled, continue
 			}
+			// Cancel the context
+			cancel()
 			return nil
 		},
 	})
-
 	registry.MustAddAdvice("TestContextCancellation", Advice{
 		Type:     Before,
 		Priority: 50,
@@ -51,25 +55,12 @@ func TestContextCancellation(t *testing.T) {
 		},
 	})
 
-	// Create a context with cancellation
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Cancel the context
-	cancel()
-
 	// Create and wrap function
 	testFn := func(ctx context.Context) string {
 		executionOrder = append(executionOrder, "target")
 		return "result"
 	}
 	wrappedFn := Wrap0RCtx[string](registry, "TestContextCancellation", testFn)
-
-	// Execute the wrapped function with cancelled context
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected: context cancellation should cause panic
-		}
-	}()
 
 	result := wrappedFn(ctx)
 

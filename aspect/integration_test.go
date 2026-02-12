@@ -228,11 +228,8 @@ func TestIntegration_PanicRecoveryPattern(t *testing.T) {
 	// Panicking execution
 	defer func() {
 		r := recover()
-		if r == nil {
-			t.Fatal("expected panic to be re-thrown")
-		}
-		if r != "division by zero" {
-			t.Errorf("unexpected panic value: %v", r)
+		if r != nil {
+			t.Fatalf("expected panic to not be re-thrown: %v", r)
 		}
 	}()
 

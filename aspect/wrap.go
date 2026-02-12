@@ -441,49 +441,72 @@ func executeWithAdviceContext(registry *Registry, functionName FuncKey, ctx cont
 	// Create execution context
 	c := NewContextWithContext(ctx, functionName, args...)
 
-	// Ensure After advice always runs
-	defer func() {
-		_ = chain.ExecuteAfter(c)
-	}()
+	if err = executeWithChain(chain, targetFn, c); err != nil {
+		c.Error = err
+	}
 
-	// Handle Panic Recovery and Throwing advice
+	return c
+}
+
+// 1. Update your execution function to return errors instead of panicking
+func executeWithChain(chain *AdviceChain, targetFn func(*Context), c *Context) (finalErr error) {
+	// Always execute After advice (even on panic/error)
+	defer func() {
+		if afterErr := chain.ExecuteAfter(c); afterErr != nil {
+			if finalErr != nil {
+				finalErr = fmt.Errorf("%w, after advice error: %v", finalErr, afterErr)
+			} else {
+				finalErr = afterErr
+			}
+		}
+	}()
+	// Handle Panic Recovery and Throwing advice - convert panic to error
 	defer func() {
 		if r := recover(); r != nil {
 			c.PanicValue = r
-			_ = chain.ExecuteAfterThrowing(c)
-			// Re-panic to maintain panic semantics for the caller
-			panic(r)
+
+			// Execute AfterThrowing advice for panic
+			if throwErr := chain.ExecuteAfterThrowing(c); throwErr != nil {
+				// Combine errors
+				finalErr = fmt.Errorf("panic: %v, afterThrowing error: %w", r, throwErr)
+			} else {
+				finalErr = fmt.Errorf("panic recovered: %v", r)
+			}
 		}
 	}()
 
 	// Execute Before advice
-	if err = chain.ExecuteBefore(c); err != nil {
-		// If Before advice fails, we typically panic or stop (design choice from original code)
-		panic(fmt.Errorf("before advice failed: %w", err))
+	if err := chain.ExecuteBefore(c); err != nil {
+		return fmt.Errorf("before advice failed: %w", err)
 	}
 
 	// Execute Around advice
 	if chain.HasAround() {
 		if err := chain.ExecuteAround(c); err != nil {
-			panic(fmt.Errorf("around advice failed: %w", err))
+			return fmt.Errorf("around advice failed: %w", err)
 		}
 		// If Around advice sets Skipped, we skip the target function
 		if c.Skipped {
-			// Execute AfterReturning if no error (Around advice might have set result)
-			if c.Error == nil && !c.HasPanic() {
-				_ = chain.ExecuteAfterReturning(c)
+			// Execute AfterReturning if no error
+			if c.Error == nil {
+				if err := chain.ExecuteAfterReturning(c); err != nil {
+					return fmt.Errorf("afterReturning advice failed: %w", err)
+				}
 			}
-			return c
+			return nil
 		}
 	}
 
-	// Execute Target Function
+	// Execute Target Function (may panic, which is caught by defer)
 	targetFn(c)
 
 	// Execute AfterReturning advice (only if no error and no panic occurred)
 	if c.Error == nil && !c.HasPanic() {
-		_ = chain.ExecuteAfterReturning(c)
+		if err := chain.ExecuteAfterReturning(c); err != nil {
+			return fmt.Errorf("afterReturning advice failed: %w", err)
+		}
 	}
 
-	return c
+	// Return any error from the target function
+	return c.Error
 }

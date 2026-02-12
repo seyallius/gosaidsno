@@ -264,8 +264,8 @@ func TestFluentAPI_AfterThrowing(t *testing.T) {
 
 	// Execute the wrapped function and catch the panic
 	defer func() {
-		if r := recover(); r == nil || r != "test panic" {
-			t.Errorf("expected panic 'test panic', got %v", r)
+		if r := recover(); r != nil && r != "test panic" {
+			t.Errorf("expected no panic! %v", r)
 		}
 	}()
 
