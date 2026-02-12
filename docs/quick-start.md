@@ -7,7 +7,7 @@ This guide will help you get started with gosaidsno in just a few minutes. You'l
 First, add gosaidsno to your project:
 
 ```bash
-go get github.com/seyallius/gosaidsno
+go get github.com/seyallius/gosaidno
 ```
 
 ## Basic Setup

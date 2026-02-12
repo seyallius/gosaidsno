@@ -8,8 +8,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/seyallius/gosaidsno/aspect"
-	"github.com/seyallius/gosaidsno/docs/examples/utils"
+	"github.com/seyallius/gosaidno/aspect"
+	"github.com/seyallius/gosaidno/docs/examples/utils"
 )
 
 // -------------------------------------------- Retry Wrapper --------------------------------------------

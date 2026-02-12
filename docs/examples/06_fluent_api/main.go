@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/seyallius/gosaidsno/aspect"
+	"github.com/seyallius/gosaidno/aspect"
 )
 
 // -------------------------------------------- Domain Models --------------------------------------------

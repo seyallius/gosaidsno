@@ -9,7 +9,7 @@ This guide provides comprehensive information about using gosaidsno effectively 
 Before you can apply advice to a function, you must register it with gosaidsno:
 
 ```go
-import "github.com/seyallius/gosaidsno/aspect"
+import "github.com/seyallius/gosaidno/aspect"
 
 // Register a function with a unique name
 err := aspect.Register("UserService.GetUser")
